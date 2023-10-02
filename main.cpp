@@ -153,6 +153,10 @@ int main(int argc, char** argv) {
     bool buttonA = false;
     bool buttonD = false;
 
+    bool isDragging = false;
+    float lastMouseX = 0.0f;
+    float lastMouseY = 0.0f;
+
     float time = 0.0f;
     bool close = false;
     while(!close){
@@ -162,7 +166,7 @@ int main(int argc, char** argv) {
             if(event.type == SDL_QUIT){
                 close = true;
             }
-            else if(event.type == SDL_KEYDOWN){
+            if(event.type == SDL_KEYDOWN){
                 switch(event.key.keysym.sym){
                     case SDLK_w:
                         buttonW = true;
@@ -178,7 +182,7 @@ int main(int argc, char** argv) {
                         break;
                 }
             }
-            else if(event.type == SDL_KEYUP){
+            if(event.type == SDL_KEYUP){
                 switch(event.key.keysym.sym){
                     case SDLK_w:
                         buttonW = false;
@@ -192,6 +196,34 @@ int main(int argc, char** argv) {
                     case SDLK_d:
                         buttonD = false;
                         break;
+                }
+            }
+            if(event.type == SDL_MOUSEBUTTONDOWN){
+                std::cout << "MOUSE DOWN" << std::endl;
+                if(event.button.button == SDL_BUTTON_LEFT){
+                    std::cout << "LEFT MOUSE BUTTON DOWN" << std::endl;
+                    isDragging = true;
+                    lastMouseX = event.motion.x;
+                    lastMouseY = event.motion.y;
+                }
+            }
+            if(event.type == SDL_MOUSEBUTTONUP){
+                if(event.button.button == SDL_BUTTON_LEFT){
+                    isDragging = false;
+                }
+            }
+            if(event.type == SDL_MOUSEMOTION){
+                if(isDragging){
+                    float xOffset = lastMouseX - event.motion.x;
+                    float yOffset = event.motion.y - lastMouseY;
+
+                    const float sensitivity = 0.1f;
+                    xOffset *= sensitivity;
+                    yOffset *= sensitivity;
+
+                    std::cout << xOffset << yOffset << std::endl;
+                    glm::vec3 movement = glm::vec3(xOffset, yOffset, 0.0f);
+                    camera.translate(movement * delta);
                 }
             }
         }
