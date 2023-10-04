@@ -18,6 +18,12 @@ struct Vertex {
     float32 x;
     float32 y;
     float32 z;
+};
+
+/*struct Vertex {
+    float32 x;
+    float32 y;
+    float32 z;
     
     float32 u;
     float32 v;
@@ -26,4 +32,4 @@ struct Vertex {
     float32 g;
     float32 b;
     float32 a;
-};
+};*/

@@ -5,6 +5,7 @@
 #include "defines.h"
 
 struct IndexBuffer {
+
     IndexBuffer(void* data, uint32 numIndices, uint8 elementSize){
         glGenBuffers(1, &bufferId);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferId);
