@@ -5,37 +5,43 @@
 #include "libs/glm/gtc/matrix_transform.hpp"
 #include "libs/glm/gtx/string_cast.hpp"
 
-class Camera{
-    public:
+class Camera
+{
 
-        Camera(float fov, float width, float height){
-            // projection = glm::perspective(fov/2.0f, width / height, 0.1f, 1000.0f);
-            projection = glm::ortho(-1.0f * 16, 1.0f * 16, -1.0f * 9, 1.0f * 9, -1.0f, 1000.0f);
-            view = glm::mat4(1.0f);
-            position = glm::vec3(0.0f, 0.0f, -8.0f);
-            update();
-        }
+private:
+    glm::mat4 projection;
+    glm::mat4 view;
+    glm::mat4 viewProj;
 
-        glm::mat4 getViewProj(){
-            return viewProj;
-        }
+    glm::vec3 position;
 
-        glm::vec3 getPosition(){
-            return position;
-        }
+public:
+    Camera(float width, float height)
+    {
+        // projection = glm::perspective(fov/2.0f, width / height, 0.1f, 1000.0f);
+        projection = glm::ortho(-1.0f * width / 2.0f, 1.0f * width / 2.0f, -1.0f * height / 2.0f, 1.0f * height / 2.0f, -1.0f, 1000.0f);
+        view = glm::mat4(1.0f);
+        position = glm::vec3(0.0f, 0.0f, -8.0f);
+        update();
+    }
 
-        void update(){
-            viewProj = projection * glm::translate(view, position);
-        }
+    glm::mat4 getViewProj()
+    {
+        return viewProj;
+    }
 
-        void translate(glm::vec3 v){
-            position += v * -1.0f;
-        }
+    glm::vec3 getPosition()
+    {
+        return position;
+    }
 
-    private:
-        glm::mat4 projection;
-        glm::mat4 view;
-        glm::mat4 viewProj;
+    void update()
+    {
+        viewProj = projection * glm::translate(view, position);
+    }
 
-        glm::vec3 position;
+    void translate(glm::vec3 v)
+    {
+        position += v * -1.0f;
+    }
 };

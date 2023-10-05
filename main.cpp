@@ -29,8 +29,8 @@
 #include "agent.h"
 #include "rectangle.h"
 
-int32 windowWidth = 1980;
-int32 windowHeight = 1080;
+int32 windowWidth = 1280;
+int32 windowHeight = 720;
 
 int colorUniformLocation;
 int modelViewProjMatrixLocation;
@@ -43,11 +43,12 @@ void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
     std::cout << "[OpenGL Error] " << message << std::endl;
 }
 
-void render(float time, Camera& camera, Shader& shader)
+void render(float time, Camera &camera, Shader &shader)
 {
 
     for (Rectangle &r : rectangles)
     {
+
         if (!colorUniformLocation != -1)
         {
             glUniform4f(colorUniformLocation, sinf(time) * sinf(time), 0.0f, 1.0f, 1.0f);
@@ -60,7 +61,19 @@ void render(float time, Camera& camera, Shader& shader)
             glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
         }
 
-        r.render(shader);
+        if (!r.isSelected())
+        {
+            std::cout << "X: " << r.getPosX() << " Y: " << r.getPosY() << "not selected" << std::endl;
+            r.render(shader);
+        }
+    }
+}
+
+void update(float ingameX, float ingameY)
+{
+    for (Rectangle &r : rectangles)
+    {
+        r.update(ingameX, ingameY);
     }
 }
 
@@ -109,7 +122,10 @@ int main(int argc, char **argv)
 
     float32 delta = 0.0f;
 
-    Camera camera(90.0f, (float)windowWidth, (float)windowHeight);
+    float32 camWidth = 1.0f * 16.0f * 2.0f;
+    float32 camHeight = 1.0f * 9.0f * 2.0f;
+
+    Camera camera(camWidth, camHeight);
     camera.translate(glm::vec3(0.0f, 0.0f, 5.0f));
     camera.update();
 
@@ -117,27 +133,33 @@ int main(int argc, char **argv)
     modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
 
     // Wireframe that only displays outlines
-    /*glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);*/
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    Vertex vertices3[] = {
+    Vertex vertices[] = {
         Vertex{-0.5f, -0.5f, 0.0f},
-        Vertex{-0.5f, 0.5f, 0.0f},
-        Vertex{0.5f, 0.5f, 0.0f},
-        Vertex{0.5f, -0.5f, 0.0f}};
-    uint32 numVertices3 = 4;
+        Vertex{-0.5f, 0.3f, 0.0f},
+        Vertex{0.5f, 0.3f, 0.0f},
+        Vertex{0.5f, -0.5f, 0.0f},
+        Vertex{-0.3f, 0.3f, 0.0f},
+        Vertex{-0.3f, 0.5f, 0.0f},
+        Vertex{0.3f, 0.5f, 0.0f},
+        Vertex{0.3f, 0.3f, 0.0f}};
+    uint32 numVertices = 8;
 
-    uint32 indices3[] = {
+    uint32 indices[] = {
         0, 1, 2,
-        0, 2, 3};
-    uint32 numIndices3 = 6;
+        0, 2, 3,
+        4, 5, 6,
+        4, 6, 7};
+    uint32 numIndices = 12;
 
-    Rectangle rect(vertices3, numVertices3, indices3, numIndices3, 0, 0);
-    Rectangle rect2(vertices3, numVertices3, indices3, numIndices3, 2, 0);
-    Rectangle rect3(vertices3, numVertices3, indices3, numIndices3, -1, 0);
-    Rectangle rect4(vertices3, numVertices3, indices3, numIndices3, 0, 2);
-    Rectangle rect5(vertices3, numVertices3, indices3, numIndices3, 3, 0);
-    Rectangle rect6(vertices3, numVertices3, indices3, numIndices3, -3, 0);
+    Rectangle rect(vertices, numVertices, indices, numIndices, 0, 0);
+    Rectangle rect2(vertices, numVertices, indices, numIndices, 2, 0);
+    Rectangle rect3(vertices, numVertices, indices, numIndices, -1, 0);
+    Rectangle rect4(vertices, numVertices, indices, numIndices, 0, 2);
+    Rectangle rect5(vertices, numVertices, indices, numIndices, 3, 0);
+    Rectangle rect6(vertices, numVertices, indices, numIndices, -3, 0);
 
     rectangles.push_back(rect);
     rectangles.push_back(rect2);
@@ -159,8 +181,14 @@ int main(int argc, char **argv)
     float lastMouseX = 0.0f;
     float lastMouseY = 0.0f;
 
+    float screenX = 0.0f;
+    float screenY = 0.0f;
+    float ingameX = 0.0f;
+    float ingameY = 0.0f;
+
     float time = 0.0f;
     bool close = false;
+    
     while (!close)
     {
         SDL_Event event;
@@ -215,6 +243,17 @@ int main(int argc, char **argv)
                     lastMouseY = event.motion.y;
                     currentMouseX = event.motion.x;
                     currentMouseY = event.motion.y;
+
+                    // Calculate ingame coordinates
+
+                    screenX = (event.motion.x * camWidth / windowWidth) - (camWidth / 2);
+                    screenY = -1.0f * ((event.motion.y * camHeight / windowHeight) - (camHeight / 2));
+
+                    ingameX = screenX - camera.getPosition()[0];
+                    ingameY = screenY - camera.getPosition()[1];
+
+                    std::cout << "ScreenX: " << screenX << " ScreenY: " << screenY << std::endl;
+                    std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
                 }
             }
             if (event.type == SDL_MOUSEBUTTONUP)
@@ -245,7 +284,7 @@ int main(int argc, char **argv)
             }
         }
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
@@ -268,33 +307,12 @@ int main(int argc, char **argv)
 
         camera.update();
 
-        /*std::list<Agent> lis;
+        for (Rectangle &r : rectangles)
+        {
+            r.rotate(360.0f * delta);
+        }
 
-        lis.push_back(Agent(0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f));
-
-        for(Agent &agent : lis){
-            agent.getVertexBuffer().bind();
-            agent.getIndexBuffer().bind();
-            // modelViewProj = camera.getViewProj() * agent.getModelMatrix();
-            // glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProj[0][0]);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            agent.getIndexBuffer().unbind();
-            agent.getVertexBuffer().unbind();
-        }*/
-
-        /*vertexBuffer.bind();
-        indexBuffer.bind();
-        glDrawElements(GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, 0);
-        //glDrawArrays(GL_TRIANGLE_STRIP, 0, numVertices);
-        indexBuffer.unbind();
-        vertexBuffer.unbind();
-
-        vertexBuffer2.bind();
-        indexBuffer.bind();
-        glDrawElements(GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, 0);
-        indexBuffer.unbind();
-        vertexBuffer2.unbind();
-*/
+        update(ingameX, ingameY);
 
         render(time, camera, shader);
 
@@ -305,7 +323,7 @@ int main(int argc, char **argv)
 
         delta = ((float32)counterElapsed) / ((float32)perfCounterFrequency);
         uint32 FPS = (uint32)(((float32)perfCounterFrequency) / ((float32)counterElapsed));
-        std::cout << FPS << std::endl;
+        // std::cout << FPS << std::endl;
         lastCounter = endCounter;
     }
 
