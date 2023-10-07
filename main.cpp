@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <cmath>
 #include <list>
 #define GLEW_STATIC
@@ -28,19 +29,45 @@
 #include "camera.h"
 #include "agent.h"
 #include "rectangle.h"
+#include "game_object.h"
+#include "mesh.h"
 
-int32 windowWidth = 1280;
-int32 windowHeight = 720;
+int32 windowWidth = 1920;
+int32 windowHeight = 1080;
+
+// int32 windowWidth = 1280;
+// int32 windowHeight = 720;
 
 int colorUniformLocation;
 int modelViewProjMatrixLocation;
 
 std::list<Rectangle> rectangles;
+std::list<std::unique_ptr<GameObject>> objects;
 
 // For windows add GLAPIENTRY behind void and window.h header
 void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
     std::cout << "[OpenGL Error] " << message << std::endl;
+}
+
+void update(float ingameX, float ingameY)
+{
+    for (Rectangle &r : rectangles)
+    {
+        r.update(ingameX, ingameY);
+    }
+
+    for (auto &objectPtr : objects)
+    {
+        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+        {
+            agentPtr->update();
+        }
+        else
+        {
+            objectPtr->update();
+        }
+    }
 }
 
 void render(float time, Camera &camera, Shader &shader)
@@ -51,7 +78,7 @@ void render(float time, Camera &camera, Shader &shader)
 
         if (!colorUniformLocation != -1)
         {
-            glUniform4f(colorUniformLocation, sinf(time) * sinf(time), 0.0f, 1.0f, 1.0f);
+            glUniform4f(colorUniformLocation, 1.0f, (sinf(time) * sinf(time)) / 2 + 0.4f, 1.0f, 1.0f);
         }
 
         glm::mat4 modelViewProjMatrix = camera.getViewProj() * r.getModelMatrix();
@@ -63,17 +90,24 @@ void render(float time, Camera &camera, Shader &shader)
 
         if (!r.isSelected())
         {
-            std::cout << "X: " << r.getPosX() << " Y: " << r.getPosY() << "not selected" << std::endl;
-            r.render(shader);
+            // std::cout << "X: " << r.getPosX() << " Y: " << r.getPosY() << "not selected" << std::endl;
+            glUniform4f(colorUniformLocation, 1.0f, 0.0f, 1.0f, 1.0f);
         }
+        r.render(shader);
     }
-}
 
-void update(float ingameX, float ingameY)
-{
-    for (Rectangle &r : rectangles)
+    for (auto &objectPtr : objects)
     {
-        r.update(ingameX, ingameY);
+        glUniform4f(colorUniformLocation, 0.5f, 0.5f, 1.0f, 1.0f);
+
+        glm::mat4 modelViewProjMatrix = camera.getViewProj() * objectPtr->getModelMatrix();
+
+        if (!modelViewProjMatrixLocation != -1)
+        {
+            glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+        }
+
+        objectPtr->render(shader);
     }
 }
 
@@ -170,6 +204,11 @@ int main(int argc, char **argv)
 
     std::cout << "SIZE: " << sizeof(rectangles) << std::endl;
 
+    Mesh mesh(vertices, numVertices, indices, numIndices);
+    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh);
+
+    objects.push_back(std::move(agent));
+
     bool buttonW = false;
     bool buttonS = false;
     bool buttonA = false;
@@ -188,7 +227,7 @@ int main(int argc, char **argv)
 
     float time = 0.0f;
     bool close = false;
-    
+
     while (!close)
     {
         SDL_Event event;
@@ -204,15 +243,38 @@ int main(int argc, char **argv)
                 {
                 case SDLK_w:
                     buttonW = true;
+                    for (auto &objectPtr : objects)
+                    {
+                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        {
+                            agentPtr->moveForward();
+                        }
+                    }
                     break;
                 case SDLK_s:
                     buttonS = true;
                     break;
                 case SDLK_a:
                     buttonA = true;
+
+                    for (auto &objectPtr : objects)
+                    {
+                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        {
+                            agentPtr->turnLeft();
+                        }
+                    }
                     break;
                 case SDLK_d:
                     buttonD = true;
+
+                    for (auto &objectPtr : objects)
+                    {
+                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        {
+                            agentPtr->turnRight();
+                        }
+                    }
                     break;
                 }
             }
@@ -275,7 +337,7 @@ int main(int argc, char **argv)
 
                     float sensitivity = 0.01f;
 
-                    glm::vec3 movement = glm::vec3(offsetX * sensitivity, offsetY * sensitivity, 0.0f);
+                    glm::vec3 movement = glm::vec3(offsetX * camWidth / windowWidth, offsetY * camHeight / windowHeight, 0.0f);
                     camera.translate(movement);
 
                     lastMouseX = currentMouseX;
@@ -290,27 +352,26 @@ int main(int argc, char **argv)
 
         if (buttonW)
         {
-            camera.translate(glm::vec3(0.0f, 0.0f, -2.0f * delta));
         }
         if (buttonS)
         {
-            camera.translate(glm::vec3(0.0f, 0.0f, 2.0f * delta));
+            
         }
         if (buttonA)
         {
-            camera.translate(glm::vec3(-2.0f * delta, 0.0f, 0.0f));
+            
         }
         if (buttonD)
         {
-            camera.translate(glm::vec3(2.0f * delta, 0.0f, 0.0f));
+            
         }
 
         camera.update();
 
-        for (Rectangle &r : rectangles)
+        /*for (Rectangle &r : rectangles)
         {
             r.rotate(360.0f * delta);
-        }
+        }*/
 
         update(ingameX, ingameY);
 

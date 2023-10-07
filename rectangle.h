@@ -2,9 +2,14 @@
 
 #include <cmath>
 
+#include "libs/glm/glm.hpp"
+#include "libs/glm/ext/matrix_transform.hpp"
+#include "libs/glm/gtc/matrix_transform.hpp"
+
 #include "vertex_buffer.h"
 #include "index_buffer.h"
 #include "defines.h"
+#include "shader.h"
 
 class Rectangle
 {
