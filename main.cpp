@@ -51,6 +51,9 @@ std::list<std::unique_ptr<Button>> buttons;
 float ingameX = 0.0f;
 float ingameY = 0.0f;
 
+float screenX = 0.0f;
+float screenY = 0.0f;
+
 float32 camWidth = 1.0f * 16.0f * 2.0f;
 float32 camHeight = 1.0f * 9.0f * 2.0f;
 
@@ -92,6 +95,11 @@ void update(float ingameX, float ingameY)
         {
             objectPtr->update();
         }
+    }
+
+    for (auto &buttonPtr : buttons)
+    {
+        buttonPtr->update(screenX, screenY);
     }
 }
 
@@ -295,9 +303,6 @@ int main(int argc, char **argv)
     float lastMouseX = 0.0f;
     float lastMouseY = 0.0f;
 
-    float screenX = 0.0f;
-    float screenY = 0.0f;
-
     float time = 0.0f;
     bool close = false;
 
@@ -393,6 +398,10 @@ int main(int argc, char **argv)
 
                     std::cout << "ScreenX: " << screenX << " ScreenY: " << screenY << std::endl;
                     std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
+
+                    std::unique_ptr<GameObject> agent = std::make_unique<Agent>((int)std::round(ingameX), (int)std::round(ingameY), 0, mesh);
+
+                    objects.push_back(std::move(agent));
                 }
             }
             else if (event.type == SDL_MOUSEBUTTONUP)
@@ -461,7 +470,7 @@ int main(int argc, char **argv)
         // font.drawString(20.0f, 20.0f, "Ganymede", &fontShader);
 
         elaps += delta;
-        if (elaps >= 0.2f)
+        if (elaps >= 1.0f)
         {
             fpsString = "FPS: ";
             fpsString.append(std::to_string(FPS));

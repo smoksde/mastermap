@@ -20,6 +20,7 @@ private:
     Mesh mesh;
 public:
     Button(float x, float y, float width, float height, Mesh &mesh);
+    void update(float mouseX, float mouseY);
     void render(Shader &shader);
     void updateModelMatrix();
     glm::mat4 getModelMatrix();
