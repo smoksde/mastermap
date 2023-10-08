@@ -1,6 +1,7 @@
 #include "agent.h"
 
 #include <iostream>
+#include <cmath>
 
 Agent::Agent(int x, int y, int z, Mesh &mesh) : GameObject(x, y, z, mesh)
 {

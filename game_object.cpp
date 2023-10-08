@@ -12,38 +12,18 @@ GameObject::GameObject(int x, int y, int z, Mesh &mesh)
 
 void GameObject::update()
 {
-
+    
 }
 
 void GameObject::render(Shader &shader)
 {
     shader.bind();
 
-    /*Vertex vertices[] = {
-        Vertex{1.0f, 1.0f, 0.0f},
-        Vertex{-1.0f, 1.0f, 0.0f},
-        Vertex{-1.0f, -1.0f, 0.0f}
-    };
-    
-    uint32 indices[] = {
-        0,1,2
-    };
-
-    uint32 numIndices = 3;
-
-    VertexBuffer vertexBuffer(vertices, 3);
-    IndexBuffer indexBuffer(indices, numIndices, sizeof(uint32));
-
-    vertexBuffer.bind();
-    indexBuffer.bind();*/
-
     getMesh()->bind();
 
     // Perform rendering using OpenGL (e.g., glDrawElements)
     glDrawElements(GL_TRIANGLES, getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
 
-    // indexBuffer.unbind();
-    // vertexBuffer.unbind();
 
     // Unbind buffers when done
     getMesh()->unbind();

@@ -14,12 +14,18 @@ private:
     glm::mat4 viewProj;
 
     glm::vec3 position;
+    float zoom;
+    float width;
+    float height;
 
 public:
-    Camera(float width, float height)
+    Camera(float nwidth, float nheight)
     {
         // projection = glm::perspective(fov/2.0f, width / height, 0.1f, 1000.0f);
-        projection = glm::ortho(-1.0f * width / 2.0f, 1.0f * width / 2.0f, -1.0f * height / 2.0f, 1.0f * height / 2.0f, -1.0f, 1000.0f);
+        width = nwidth;
+        height = nheight;
+        zoom = 1.0f;
+        projection = glm::ortho(-zoom * width / 2.0f, zoom * width / 2.0f, -zoom * height / 2.0f, zoom * height / 2.0f, -1.0f, 1000.0f);
         view = glm::mat4(1.0f);
         position = glm::vec3(0.0f, 0.0f, -8.0f);
         update();
@@ -43,5 +49,24 @@ public:
     void translate(glm::vec3 v)
     {
         position += v * -1.0f;
+    }
+
+    void changeZoom(float change)
+    {
+        zoom += change;
+        if (zoom > 8.0f) zoom = 8.0f;
+        if (zoom < 1.0f) zoom = 1.0f;
+        updateProjection();
+    }
+
+    float getZoom()
+    {
+        return zoom;
+    }
+
+    void updateProjection()
+    {
+        projection = glm::ortho(-zoom * width / 2.0f, zoom * width / 2.0f, -zoom * height / 2.0f, zoom * height / 2.0f, -1.0f, 1000.0f);
+        update();
     }
 };

@@ -31,6 +31,7 @@
 #include "rectangle.h"
 #include "game_object.h"
 #include "mesh.h"
+#include "font.h"
 
 int32 windowWidth = 1920;
 int32 windowHeight = 1080;
@@ -78,7 +79,7 @@ void render(float time, Camera &camera, Shader &shader)
 
         if (!colorUniformLocation != -1)
         {
-            glUniform4f(colorUniformLocation, 1.0f, (sinf(time) * sinf(time)) / 2 + 0.4f, 1.0f, 1.0f);
+            glUniform4f(colorUniformLocation, 1.0f, (sinf(time) * sinf(time)) / 4 + 0.75f, 0.18f, 1.0f);
         }
 
         glm::mat4 modelViewProjMatrix = camera.getViewProj() * r.getModelMatrix();
@@ -91,14 +92,14 @@ void render(float time, Camera &camera, Shader &shader)
         if (!r.isSelected())
         {
             // std::cout << "X: " << r.getPosX() << " Y: " << r.getPosY() << "not selected" << std::endl;
-            glUniform4f(colorUniformLocation, 1.0f, 0.0f, 1.0f, 1.0f);
+            glUniform4f(colorUniformLocation, 1.0f, 0.78f, 0.18f, 1.0f);
         }
         r.render(shader);
     }
 
     for (auto &objectPtr : objects)
     {
-        glUniform4f(colorUniformLocation, 0.5f, 0.5f, 1.0f, 1.0f);
+        glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
 
         glm::mat4 modelViewProjMatrix = camera.getViewProj() * objectPtr->getModelMatrix();
 
@@ -148,8 +149,16 @@ int main(int argc, char **argv)
     glDebugMessageCallback(openGLDebugCallback, 0);
 #endif
 
+    // Activate blending for transparent objects
+    // glEnable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    Shader fontShader("shaders/font.vert", "shaders/font.frag");
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     shader.bind();
+
+    Font font;
+    font.initFont("fonts/roboto_mono/RobotoMono-SemiBold.ttf");
 
     uint64 perfCounterFrequency = SDL_GetPerformanceFrequency();
     uint64 lastCounter = SDL_GetPerformanceCounter();
@@ -228,6 +237,10 @@ int main(int argc, char **argv)
     float time = 0.0f;
     bool close = false;
 
+    uint32 FPS = 0;
+    std::string fpsString = "";
+    float elaps = 1.0f;
+
     while (!close)
     {
         SDL_Event event;
@@ -237,7 +250,7 @@ int main(int argc, char **argv)
             {
                 close = true;
             }
-            if (event.type == SDL_KEYDOWN)
+            else if (event.type == SDL_KEYDOWN)
             {
                 switch (event.key.keysym.sym)
                 {
@@ -278,7 +291,7 @@ int main(int argc, char **argv)
                     break;
                 }
             }
-            if (event.type == SDL_KEYUP)
+            else if (event.type == SDL_KEYUP)
             {
                 switch (event.key.keysym.sym)
                 {
@@ -296,7 +309,7 @@ int main(int argc, char **argv)
                     break;
                 }
             }
-            if (event.type == SDL_MOUSEBUTTONDOWN)
+            else if (event.type == SDL_MOUSEBUTTONDOWN)
             {
                 if (event.button.button == SDL_BUTTON_LEFT)
                 {
@@ -308,8 +321,8 @@ int main(int argc, char **argv)
 
                     // Calculate ingame coordinates
 
-                    screenX = (event.motion.x * camWidth / windowWidth) - (camWidth / 2);
-                    screenY = -1.0f * ((event.motion.y * camHeight / windowHeight) - (camHeight / 2));
+                    screenX = (event.motion.x * camWidth * camera.getZoom() / windowWidth) - (camWidth * camera.getZoom() / 2);
+                    screenY = -1.0f * ((event.motion.y * camHeight * camera.getZoom() / windowHeight) - (camHeight * camera.getZoom() / 2));
 
                     ingameX = screenX - camera.getPosition()[0];
                     ingameY = screenY - camera.getPosition()[1];
@@ -318,64 +331,92 @@ int main(int argc, char **argv)
                     std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
                 }
             }
-            if (event.type == SDL_MOUSEBUTTONUP)
+            else if (event.type == SDL_MOUSEBUTTONUP)
             {
                 if (event.button.button == SDL_BUTTON_LEFT)
                 {
                     isDragging = false;
                 }
             }
-            if (event.type == SDL_MOUSEMOTION)
+            else if (event.type == SDL_MOUSEMOTION)
             {
+                currentMouseX = event.motion.x;
+                currentMouseY = event.motion.y;
+
+                screenX = (event.motion.x * camWidth * camera.getZoom() / windowWidth) - (camWidth * camera.getZoom() / 2);
+                screenY = -1.0f * ((event.motion.y * camHeight * camera.getZoom() / windowHeight) - (camHeight * camera.getZoom() / 2));
+
+                ingameX = screenX - camera.getPosition()[0];
+                ingameY = screenY - camera.getPosition()[1];
+
                 if (isDragging)
                 {
-                    currentMouseX = event.motion.x;
-                    currentMouseY = event.motion.y;
-
                     float offsetX = lastMouseX - currentMouseX;
                     float offsetY = currentMouseY - lastMouseY;
 
                     float sensitivity = 0.01f;
 
-                    glm::vec3 movement = glm::vec3(offsetX * camWidth / windowWidth, offsetY * camHeight / windowHeight, 0.0f);
+                    glm::vec3 movement = glm::vec3(offsetX * camWidth / windowWidth * camera.getZoom(), offsetY * camHeight / windowHeight * camera.getZoom(), 0.0f);
                     camera.translate(movement);
+
+                    std::cout << camera.getZoom() << std::endl;
 
                     lastMouseX = currentMouseX;
                     lastMouseY = currentMouseY;
                 }
             }
+            else if (event.type == SDL_MOUSEWHEEL)
+            {
+                camera.changeZoom(-event.wheel.y);
+            }
         }
 
-        glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
+        glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
-        if (buttonW)
-        {
-        }
-        if (buttonS)
-        {
-            
-        }
-        if (buttonA)
-        {
-            
-        }
-        if (buttonD)
-        {
-            
-        }
-
         camera.update();
-
-        /*for (Rectangle &r : rectangles)
-        {
-            r.rotate(360.0f * delta);
-        }*/
 
         update(ingameX, ingameY);
 
+        shader.bind();
         render(time, camera, shader);
+        shader.unbind();
+
+        fontShader.bind();
+
+        int w, h;
+        SDL_GetWindowSize(window, &w, &h);
+        glm::mat4 ortho = glm::ortho(0.0f, (float)w, (float)h, 0.0f);
+        glUniformMatrix4fv(glGetUniformLocation(fontShader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &ortho[0][0]);
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_DEPTH_TEST);
+
+        // font.drawString(20.0f, 20.0f, "Ganymede", &fontShader);
+
+        elaps += delta;
+        if (elaps >= 0.2f)
+        {
+            fpsString = "FPS: ";
+            fpsString.append(std::to_string(FPS));
+            elaps = 0.0f;
+        }
+        font.drawString(12.0f, 40.0f, fpsString.c_str(), &fontShader);
+
+        std::string xString = "X: ";
+        xString.append(std::to_string((int)std::round(ingameX)));
+        font.drawString(12.0f, 88.0f, xString.c_str(), &fontShader);
+
+        std::string yString = "Y: ";
+        yString.append(std::to_string((int)std::round(ingameY)));
+        font.drawString(12.0f, 136.0f, yString.c_str(), &fontShader);
+
+        fontShader.unbind();
+
+        // glEnable(GL_CULL_FACE);
+        // glEnable(GL_DEPTH_TEST);
 
         SDL_GL_SwapWindow(window);
 
@@ -383,7 +424,7 @@ int main(int argc, char **argv)
         uint64 counterElapsed = endCounter - lastCounter;
 
         delta = ((float32)counterElapsed) / ((float32)perfCounterFrequency);
-        uint32 FPS = (uint32)(((float32)perfCounterFrequency) / ((float32)counterElapsed));
+        FPS = (uint32)(((float32)perfCounterFrequency) / ((float32)counterElapsed));
         // std::cout << FPS << std::endl;
         lastCounter = endCounter;
     }

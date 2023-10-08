@@ -19,7 +19,8 @@
 #define ROTATION_DOWN 180.0f
 #define ROTATION_RIGHT 270.0f
 
-#define DEFAULT_SCALING_VECTOR glm::vec3(1.0f, 1.0f, 1.0f)
+// #define DEFAULT_SCALING_VECTOR glm::vec3(1.0f, 1.0f, 1.0f)
+#define DEFAULT_SCALING_VECTOR glm::vec3(0.8f, 0.8f, 0.8f)
 #define DEFAULT_ROTATION_VECTOR glm::vec3(0.0f, 0.0f, 1.0f)
 
 class GameObject
