@@ -46,7 +46,7 @@ private:
 public:
     GameObject(int x, int y, int z, Mesh &mesh);
     virtual void update();
-    void render(Shader &shader);
+    virtual void render(Shader &shader);
     Mesh* getMesh();
     void updateModelMatrix();
     glm::mat4 getModelMatrix();

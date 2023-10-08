@@ -14,6 +14,8 @@
                 "game_object.cpp",
                 "mesh.cpp",
                 "agent.cpp",
+                "slab.cpp",
+                "button.cpp",
                 "-o",
                 "mastermap",
                 "-D",

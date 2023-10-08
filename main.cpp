@@ -32,6 +32,8 @@
 #include "game_object.h"
 #include "mesh.h"
 #include "font.h"
+#include "slab.h"
+#include "button.h"
 
 int32 windowWidth = 1920;
 int32 windowHeight = 1080;
@@ -44,6 +46,28 @@ int modelViewProjMatrixLocation;
 
 std::list<Rectangle> rectangles;
 std::list<std::unique_ptr<GameObject>> objects;
+std::list<std::unique_ptr<Button>> buttons;
+
+float ingameX = 0.0f;
+float ingameY = 0.0f;
+
+float32 camWidth = 1.0f * 16.0f * 2.0f;
+float32 camHeight = 1.0f * 9.0f * 2.0f;
+
+glm::mat4 standardProj = glm::ortho(-camWidth / 2.0f, camWidth / 2.0f, -camHeight / 2.0f, camHeight / 2.0f, -1.0f, 1000.0f);
+
+Vertex standardVertices[] = {
+    Vertex{-0.5f, -0.5f, 0.0f},
+    Vertex{-0.5f, 0.5f, 0.0f},
+    Vertex{0.5f, 0.5f, 0.0f},
+    Vertex{0.5f, -0.5f, 0.0f},
+};
+uint32 standardNumVertices = 4;
+
+uint32 standardIndices[] = {
+    0, 1, 2,
+    0, 2, 3};
+uint32 standardNumIndices = 6;
 
 // For windows add GLAPIENTRY behind void and window.h header
 void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
@@ -73,6 +97,35 @@ void update(float ingameX, float ingameY)
 
 void render(float time, Camera &camera, Shader &shader)
 {
+
+    Vertex highlightVertices[] = {
+        Vertex{-0.5f, -0.5f, 0.0f},
+        Vertex{-0.5f, 0.5f, 0.0f},
+        Vertex{0.5f, 0.5f, 0.0f},
+        Vertex{0.5f, -0.5f, 0.0f},
+    };
+    uint32 highlightNumVertices = 4;
+
+    uint32 highlightIndices[] = {
+        0, 1, 2,
+        0, 2, 3};
+    uint32 highlightNumIndices = 6;
+
+    VertexBuffer highlightVB(highlightVertices, highlightNumVertices);
+    IndexBuffer highlightIB(highlightIndices, highlightNumIndices, sizeof(uint32));
+
+    glm::mat4 modelViewProjMatrix = camera.getViewProj() * glm::translate(glm::mat4(1.0f), glm::vec3((int)std::round(ingameX), (int)std::round(ingameY), 1.0f));
+
+    glUniform4f(colorUniformLocation, 0.88f, 0.88f, 0.88f, 1.0f);
+    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+    highlightVB.bind();
+    highlightIB.bind();
+
+    glDrawElements(GL_TRIANGLES, highlightNumIndices, GL_UNSIGNED_INT, 0);
+
+    highlightIB.unbind();
+    highlightVB.unbind();
 
     for (Rectangle &r : rectangles)
     {
@@ -109,6 +162,17 @@ void render(float time, Camera &camera, Shader &shader)
         }
 
         objectPtr->render(shader);
+    }
+
+    for (auto &buttonPtr : buttons)
+    {
+        glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
+
+        glm::mat4 modelViewProjMatrix = standardProj * buttonPtr->getModelMatrix();
+
+        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+        buttonPtr->render(shader);
     }
 }
 
@@ -165,9 +229,6 @@ int main(int argc, char **argv)
 
     float32 delta = 0.0f;
 
-    float32 camWidth = 1.0f * 16.0f * 2.0f;
-    float32 camHeight = 1.0f * 9.0f * 2.0f;
-
     Camera camera(camWidth, camHeight);
     camera.translate(glm::vec3(0.0f, 0.0f, 5.0f));
     camera.update();
@@ -218,6 +279,11 @@ int main(int argc, char **argv)
 
     objects.push_back(std::move(agent));
 
+    Mesh buttonMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
+    std::unique_ptr<Button> button = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh);
+
+    buttons.push_back(std::move(button));
+
     bool buttonW = false;
     bool buttonS = false;
     bool buttonA = false;
@@ -231,8 +297,6 @@ int main(int argc, char **argv)
 
     float screenX = 0.0f;
     float screenY = 0.0f;
-    float ingameX = 0.0f;
-    float ingameY = 0.0f;
 
     float time = 0.0f;
     bool close = false;

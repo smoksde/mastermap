@@ -69,4 +69,9 @@ public:
         projection = glm::ortho(-zoom * width / 2.0f, zoom * width / 2.0f, -zoom * height / 2.0f, zoom * height / 2.0f, -1.0f, 1000.0f);
         update();
     }
+
+    glm::mat4 getProjection()
+    {
+        return projection;
+    }
 };
