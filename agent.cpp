@@ -3,13 +3,49 @@
 #include <iostream>
 #include <cmath>
 
-Agent::Agent(int x, int y, int z, Mesh &mesh) : GameObject(x, y, z, mesh)
+Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera) : GameObject(x, y, z, mesh, camera)
 {
 }
 
 void Agent::update()
 {
+    if (isSelected())
+    {
+        std::string str = getScript();
+
+        if (str.length() > 0)
+        {
+            char character = str[pc];
+
+            if (character == 'm')
+            {
+                moveForward();
+            }
+            if (character == 'l')
+            {
+                turnLeft();
+            }
+            if (character == 'r')
+            {
+                turnRight();
+            }
+
+            if (pc >= str.length() - 1)
+            {
+                pc = 0;
+            }
+            else
+            {
+                pc++;
+            }
+        }
+    }
     GameObject::update();
+}
+
+void Agent::render(Shader &shader)
+{
+    GameObject::render(shader);
 }
 
 void Agent::moveForward()
@@ -41,20 +77,20 @@ void Agent::turnLeft()
 
     switch (fac)
     {
-        case FACING_UP:
-            setFacing(FACING_LEFT);
-            break;
-        case FACING_LEFT:
-            setFacing(FACING_DOWN);
-            break;
-        case FACING_DOWN:
-            setFacing(FACING_RIGHT);
-            break;
-        case FACING_RIGHT:
-            setFacing(FACING_UP);
-            break;
-        default:
-            break;
+    case FACING_UP:
+        setFacing(FACING_LEFT);
+        break;
+    case FACING_LEFT:
+        setFacing(FACING_DOWN);
+        break;
+    case FACING_DOWN:
+        setFacing(FACING_RIGHT);
+        break;
+    case FACING_RIGHT:
+        setFacing(FACING_UP);
+        break;
+    default:
+        break;
     }
 }
 
@@ -64,19 +100,29 @@ void Agent::turnRight()
 
     switch (fac)
     {
-        case FACING_UP:
-            setFacing(FACING_RIGHT);
-            break;
-        case FACING_LEFT:
-            setFacing(FACING_UP);
-            break;
-        case FACING_DOWN:
-            setFacing(FACING_LEFT);
-            break;
-        case FACING_RIGHT:
-            setFacing(FACING_DOWN);
-            break;
-        default:
-            break;
+    case FACING_UP:
+        setFacing(FACING_RIGHT);
+        break;
+    case FACING_LEFT:
+        setFacing(FACING_UP);
+        break;
+    case FACING_DOWN:
+        setFacing(FACING_LEFT);
+        break;
+    case FACING_RIGHT:
+        setFacing(FACING_DOWN);
+        break;
+    default:
+        break;
     }
+}
+
+void Agent::setScript(std::string str)
+{
+    script = str;
+}
+
+std::string Agent::getScript()
+{
+    return script;
 }

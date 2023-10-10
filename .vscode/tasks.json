@@ -16,6 +16,7 @@
                 "agent.cpp",
                 "slab.cpp",
                 "button.cpp",
+                "editor.cpp",
                 "-o",
                 "mastermap",
                 "-D",

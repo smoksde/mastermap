@@ -1,7 +1,8 @@
 #include "game_object.h"
+#include <SDL2/SDL.h>
 
-GameObject::GameObject(int x, int y, int z, Mesh &mesh)
-    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh)
+GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera)
+    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera)
 {
     scalingVector = DEFAULT_SCALING_VECTOR;
     rotation = ROTATION_UP;
@@ -17,6 +18,15 @@ void GameObject::update()
 
 void GameObject::render(Shader &shader)
 {
+
+    int colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
+    int modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
+
+    glm::mat4 modelViewProjMatrix = camera.getViewProj() * getModelMatrix();
+
+    glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
+    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
     shader.bind();
 
     getMesh()->bind();
@@ -24,12 +34,11 @@ void GameObject::render(Shader &shader)
     // Perform rendering using OpenGL (e.g., glDrawElements)
     glDrawElements(GL_TRIANGLES, getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
 
-
     // Unbind buffers when done
     getMesh()->unbind();
 }
 
-Mesh* GameObject::getMesh()
+Mesh *GameObject::getMesh()
 {
     return &mesh;
 }
@@ -50,6 +59,16 @@ glm::mat4 GameObject::getModelMatrix()
 bool GameObject::isSelected()
 {
     return selected;
+}
+
+void GameObject::select()
+{
+    selected = true;
+}
+
+void GameObject::deselect()
+{
+    selected = false;
 }
 
 int GameObject::getX()
@@ -113,30 +132,31 @@ void GameObject::setRotation(float newRotation)
     updateModelMatrix();
 }
 
-int GameObject::getFacing(){
+int GameObject::getFacing()
+{
     return facing;
 }
 
 void GameObject::setFacing(int newFacing)
 {
     facing = newFacing;
-    switch(facing)
+    switch (facing)
     {
-        case FACING_UP:
-            rotation = ROTATION_UP;
-            break;
-        case FACING_LEFT:
-            rotation = ROTATION_LEFT;
-            break;
-        case FACING_DOWN:
-            rotation = ROTATION_DOWN;
-            break;
-        case FACING_RIGHT:
-            rotation = ROTATION_RIGHT;
-            break;
-        default:
-            rotation = ROTATION_UP;
-            break;
+    case FACING_UP:
+        rotation = ROTATION_UP;
+        break;
+    case FACING_LEFT:
+        rotation = ROTATION_LEFT;
+        break;
+    case FACING_DOWN:
+        rotation = ROTATION_DOWN;
+        break;
+    case FACING_RIGHT:
+        rotation = ROTATION_RIGHT;
+        break;
+    default:
+        rotation = ROTATION_UP;
+        break;
     }
     updateModelMatrix();
 }

@@ -17,9 +17,10 @@ private:
     glm::vec3 scalingVector;
     glm::mat4 modelMatrix;
 
-    Mesh mesh;
+    Mesh &mesh;
+    Camera &camera;
 public:
-    Button(float x, float y, float width, float height, Mesh &mesh);
+    Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera);
     void update(float mouseX, float mouseY);
     void render(Shader &shader);
     void updateModelMatrix();

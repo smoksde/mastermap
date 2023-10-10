@@ -8,6 +8,7 @@
 
 #include "shader.h"
 #include "mesh.h"
+#include "camera.h"
 
 #define FACING_UP 0
 #define FACING_LEFT 1
@@ -39,18 +40,21 @@ private:
 
     glm::mat4 modelMatrix;
 
-    Mesh mesh;
+    Mesh &mesh;
+    Camera &camera;
 
     bool selected = false;
 
 public:
-    GameObject(int x, int y, int z, Mesh &mesh);
+    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera);
     virtual void update();
     virtual void render(Shader &shader);
     Mesh* getMesh();
     void updateModelMatrix();
     glm::mat4 getModelMatrix();
     bool isSelected();
+    void select();
+    void deselect();
     int getX();
     int getY();
     int getZ();
@@ -64,5 +68,4 @@ public:
     void setRotation(float rotation);
     int getFacing();
     void setFacing(int facing);
-
 };

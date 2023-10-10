@@ -41,6 +41,21 @@ public:
         return position;
     }
 
+    float getX()
+    {
+        return position[0];
+    }
+
+    float getY()
+    {
+        return position[1];
+    }
+
+    float getZ()
+    {
+        return position[2];
+    }
+
     void update()
     {
         viewProj = projection * glm::translate(view, position);

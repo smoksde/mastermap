@@ -4,5 +4,5 @@ class Slab : public GameObject
 {
 private:
 public:
-  Slab(int x, int y, int z, Mesh &mesh);
+  Slab(int x, int y, int z, Mesh &mesh, Camera &camera);
 };

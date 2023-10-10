@@ -28,12 +28,12 @@
 #include "shader.h"
 #include "camera.h"
 #include "agent.h"
-#include "rectangle.h"
 #include "game_object.h"
 #include "mesh.h"
 #include "font.h"
 #include "slab.h"
 #include "button.h"
+#include "converters.h"
 
 int32 windowWidth = 1920;
 int32 windowHeight = 1080;
@@ -44,9 +44,10 @@ int32 windowHeight = 1080;
 int colorUniformLocation;
 int modelViewProjMatrixLocation;
 
-std::list<Rectangle> rectangles;
 std::list<std::unique_ptr<GameObject>> objects;
 std::list<std::unique_ptr<Button>> buttons;
+
+GameObject *selectedObjectPtr;
 
 float ingameX = 0.0f;
 float ingameY = 0.0f;
@@ -57,7 +58,9 @@ float screenY = 0.0f;
 float32 camWidth = 1.0f * 16.0f * 2.0f;
 float32 camHeight = 1.0f * 9.0f * 2.0f;
 
-glm::mat4 standardProj = glm::ortho(-camWidth / 2.0f, camWidth / 2.0f, -camHeight / 2.0f, camHeight / 2.0f, -1.0f, 1000.0f);
+Camera camera(camWidth, camHeight);
+
+Camera UICamera(camWidth, camHeight);
 
 Vertex standardVertices[] = {
     Vertex{-0.5f, -0.5f, 0.0f},
@@ -72,6 +75,10 @@ uint32 standardIndices[] = {
     0, 2, 3};
 uint32 standardNumIndices = 6;
 
+float32 delta = 0.0f;
+float32 elapsUpdate = 0.0f;
+float32 elapsCursorBlink = 0.0f;
+
 // For windows add GLAPIENTRY behind void and window.h header
 void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
@@ -80,21 +87,21 @@ void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
 
 void update(float ingameX, float ingameY)
 {
-    for (Rectangle &r : rectangles)
+    elapsUpdate += delta;
+    if (elapsUpdate >= 1.0f)
     {
-        r.update(ingameX, ingameY);
-    }
-
-    for (auto &objectPtr : objects)
-    {
-        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+        for (auto &objectPtr : objects)
         {
-            agentPtr->update();
+            if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+            {
+                agentPtr->update();
+            }
+            else
+            {
+                objectPtr->update();
+            }
         }
-        else
-        {
-            objectPtr->update();
-        }
+        elapsUpdate = 0.0f;
     }
 
     for (auto &buttonPtr : buttons)
@@ -103,24 +110,12 @@ void update(float ingameX, float ingameY)
     }
 }
 
-void render(float time, Camera &camera, Shader &shader)
+void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 {
+    shader.bind();
 
-    Vertex highlightVertices[] = {
-        Vertex{-0.5f, -0.5f, 0.0f},
-        Vertex{-0.5f, 0.5f, 0.0f},
-        Vertex{0.5f, 0.5f, 0.0f},
-        Vertex{0.5f, -0.5f, 0.0f},
-    };
-    uint32 highlightNumVertices = 4;
-
-    uint32 highlightIndices[] = {
-        0, 1, 2,
-        0, 2, 3};
-    uint32 highlightNumIndices = 6;
-
-    VertexBuffer highlightVB(highlightVertices, highlightNumVertices);
-    IndexBuffer highlightIB(highlightIndices, highlightNumIndices, sizeof(uint32));
+    VertexBuffer highlightVB(standardVertices, standardNumVertices);
+    IndexBuffer highlightIB(standardIndices, standardNumIndices, sizeof(uint32));
 
     glm::mat4 modelViewProjMatrix = camera.getViewProj() * glm::translate(glm::mat4(1.0f), glm::vec3((int)std::round(ingameX), (int)std::round(ingameY), 1.0f));
 
@@ -130,58 +125,40 @@ void render(float time, Camera &camera, Shader &shader)
     highlightVB.bind();
     highlightIB.bind();
 
-    glDrawElements(GL_TRIANGLES, highlightNumIndices, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
 
     highlightIB.unbind();
     highlightVB.unbind();
 
-    for (Rectangle &r : rectangles)
-    {
-
-        if (!colorUniformLocation != -1)
-        {
-            glUniform4f(colorUniformLocation, 1.0f, (sinf(time) * sinf(time)) / 4 + 0.75f, 0.18f, 1.0f);
-        }
-
-        glm::mat4 modelViewProjMatrix = camera.getViewProj() * r.getModelMatrix();
-
-        if (!modelViewProjMatrixLocation != -1)
-        {
-            glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-        }
-
-        if (!r.isSelected())
-        {
-            // std::cout << "X: " << r.getPosX() << " Y: " << r.getPosY() << "not selected" << std::endl;
-            glUniform4f(colorUniformLocation, 1.0f, 0.78f, 0.18f, 1.0f);
-        }
-        r.render(shader);
-    }
-
     for (auto &objectPtr : objects)
     {
-        glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
-
-        glm::mat4 modelViewProjMatrix = camera.getViewProj() * objectPtr->getModelMatrix();
-
-        if (!modelViewProjMatrixLocation != -1)
-        {
-            glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-        }
-
         objectPtr->render(shader);
     }
 
     for (auto &buttonPtr : buttons)
     {
-        glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
-
-        glm::mat4 modelViewProjMatrix = standardProj * buttonPtr->getModelMatrix();
-
-        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-
         buttonPtr->render(shader);
     }
+
+    VertexBuffer editorVB(standardVertices, standardNumVertices);
+    IndexBuffer editorIB(standardIndices, standardNumIndices, sizeof(uint32));
+
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, camHeight / 6 - camHeight / 2.0f, 0.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(camWidth / 2.0f, camHeight / 3.0f, 1.0f));
+
+    modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+
+    glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
+    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+    editorVB.bind();
+    editorIB.bind();
+
+    glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
+
+    editorVB.unbind();
+    editorIB.unbind();
 }
 
 int main(int argc, char **argv)
@@ -235,11 +212,10 @@ int main(int argc, char **argv)
     uint64 perfCounterFrequency = SDL_GetPerformanceFrequency();
     uint64 lastCounter = SDL_GetPerformanceCounter();
 
-    float32 delta = 0.0f;
-
-    Camera camera(camWidth, camHeight);
     camera.translate(glm::vec3(0.0f, 0.0f, 5.0f));
     camera.update();
+
+    UICamera.update();
 
     colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
     modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
@@ -266,36 +242,15 @@ int main(int argc, char **argv)
         4, 6, 7};
     uint32 numIndices = 12;
 
-    Rectangle rect(vertices, numVertices, indices, numIndices, 0, 0);
-    Rectangle rect2(vertices, numVertices, indices, numIndices, 2, 0);
-    Rectangle rect3(vertices, numVertices, indices, numIndices, -1, 0);
-    Rectangle rect4(vertices, numVertices, indices, numIndices, 0, 2);
-    Rectangle rect5(vertices, numVertices, indices, numIndices, 3, 0);
-    Rectangle rect6(vertices, numVertices, indices, numIndices, -3, 0);
-
-    rectangles.push_back(rect);
-    rectangles.push_back(rect2);
-    rectangles.push_back(rect3);
-    rectangles.push_back(rect4);
-    rectangles.push_back(rect5);
-    rectangles.push_back(rect6);
-
-    std::cout << "SIZE: " << sizeof(rectangles) << std::endl;
-
     Mesh mesh(vertices, numVertices, indices, numIndices);
-    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh);
+    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera);
 
     objects.push_back(std::move(agent));
 
     Mesh buttonMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
-    std::unique_ptr<Button> button = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh);
+    std::unique_ptr<Button> button = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera);
 
     buttons.push_back(std::move(button));
-
-    bool buttonW = false;
-    bool buttonS = false;
-    bool buttonA = false;
-    bool buttonD = false;
 
     bool isDragging = false;
     float currentMouseX = 0.0f;
@@ -324,20 +279,17 @@ int main(int argc, char **argv)
                 switch (event.key.keysym.sym)
                 {
                 case SDLK_w:
-                    buttonW = true;
                     for (auto &objectPtr : objects)
                     {
                         if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
                         {
-                            agentPtr->moveForward();
+                            // agentPtr->moveForward();
                         }
                     }
                     break;
                 case SDLK_s:
-                    buttonS = true;
                     break;
                 case SDLK_a:
-                    buttonA = true;
 
                     for (auto &objectPtr : objects)
                     {
@@ -348,7 +300,6 @@ int main(int argc, char **argv)
                     }
                     break;
                 case SDLK_d:
-                    buttonD = true;
 
                     for (auto &objectPtr : objects)
                     {
@@ -365,16 +316,12 @@ int main(int argc, char **argv)
                 switch (event.key.keysym.sym)
                 {
                 case SDLK_w:
-                    buttonW = false;
                     break;
                 case SDLK_s:
-                    buttonS = false;
                     break;
                 case SDLK_a:
-                    buttonA = false;
                     break;
                 case SDLK_d:
-                    buttonD = false;
                     break;
                 }
             }
@@ -396,12 +343,34 @@ int main(int argc, char **argv)
                     ingameX = screenX - camera.getPosition()[0];
                     ingameY = screenY - camera.getPosition()[1];
 
-                    std::cout << "ScreenX: " << screenX << " ScreenY: " << screenY << std::endl;
-                    std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
+                    // std::cout << "ScreenX: " << screenX << " ScreenY: " << screenY << std::endl;
+                    // std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
 
-                    std::unique_ptr<GameObject> agent = std::make_unique<Agent>((int)std::round(ingameX), (int)std::round(ingameY), 0, mesh);
+                    // std::unique_ptr<GameObject> agent = std::make_unique<Agent>((int)std::round(ingameX), (int)std::round(ingameY), 0, mesh, camera);
 
-                    objects.push_back(std::move(agent));
+                    // objects.push_back(std::move(agent));
+
+                    for (auto &objectPtr : objects)
+                    {
+                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        {
+                            if (agentPtr->getX() == (int)std::round(ingameX) && agentPtr->getY() == (int)std::round(ingameY))
+                            {
+                                if (selectedObjectPtr != nullptr)
+                                {
+                                    selectedObjectPtr->deselect();
+                                }
+                                agentPtr->select();
+                                selectedObjectPtr = agentPtr;
+                                break;
+                            }
+                            if (selectedObjectPtr != nullptr)
+                            {
+                                selectedObjectPtr->deselect();
+                                selectedObjectPtr = nullptr;
+                            }
+                        }
+                    }
                 }
             }
             else if (event.type == SDL_MOUSEBUTTONUP)
@@ -427,12 +396,10 @@ int main(int argc, char **argv)
                     float offsetX = lastMouseX - currentMouseX;
                     float offsetY = currentMouseY - lastMouseY;
 
-                    float sensitivity = 0.01f;
-
                     glm::vec3 movement = glm::vec3(offsetX * camWidth / windowWidth * camera.getZoom(), offsetY * camHeight / windowHeight * camera.getZoom(), 0.0f);
                     camera.translate(movement);
 
-                    std::cout << camera.getZoom() << std::endl;
+                    // std::cout << camera.getZoom() << std::endl;
 
                     lastMouseX = currentMouseX;
                     lastMouseY = currentMouseY;
@@ -444,7 +411,7 @@ int main(int argc, char **argv)
             }
         }
 
-        glClearColor(0.9f, 0.9f, 0.9f, 1.0f);
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
@@ -453,7 +420,7 @@ int main(int argc, char **argv)
         update(ingameX, ingameY);
 
         shader.bind();
-        render(time, camera, shader);
+        render(time, camera, shader, fontShader);
         shader.unbind();
 
         fontShader.bind();
@@ -466,8 +433,6 @@ int main(int argc, char **argv)
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_DEPTH_TEST);
-
-        // font.drawString(20.0f, 20.0f, "Ganymede", &fontShader);
 
         elaps += delta;
         if (elaps >= 1.0f)
@@ -485,6 +450,85 @@ int main(int argc, char **argv)
         std::string yString = "Y: ";
         yString.append(std::to_string((int)std::round(ingameY)));
         font.drawString(12.0f, 136.0f, yString.c_str(), &fontShader);
+
+        std::string scriptString = "HI";
+
+        Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
+        if (selectedAgentPtr != nullptr)
+        {
+            scriptString = selectedAgentPtr->getScript();
+
+            int lineIndex = 0;
+            std::string substr;
+            glm::vec2 sumWidth(0.0f, 0.0f);
+
+            while (scriptString.length() > 0)
+            {
+                int strPos = 0;
+
+                while (scriptString[strPos] != '\n')
+                {
+                    strPos++;
+                }
+
+                substr = scriptString.substr(0, strPos);
+                scriptString = scriptString.substr(strPos + 1);
+
+                sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * lineIndex) + 40.0f, substr.c_str(), &fontShader);
+
+                lineIndex++;
+            }
+
+            fontShader.unbind();
+
+            shader.bind();
+
+            VertexBuffer cursorVB(standardVertices, standardNumVertices);
+            IndexBuffer cursorIB(standardIndices, standardNumIndices, sizeof(uint32));
+
+            // std::cout << substr.length() << std::endl;
+
+            glm::mat4 modelMatrix = glm::mat4(1.0f);
+            // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
+
+            // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
+            float coord_x = sumWidth[0];
+            float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (lineIndex - 1)) + 40.0f;
+
+            // float coord_x = windowWidth / ;
+            // float coord_y = 100.0f;
+
+            std::cout << coord_x << std::endl;
+            std::cout << coord_y << std::endl;
+
+            glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camWidth, camHeight);
+
+            std::cout << coords[0] << " " << coords[1] << std::endl;
+
+            coords[0] += 0.2f;  // 0.15f
+            coords[1] += 0.22f; // should have calculated value
+
+            std::cout << coords[0] << " " << coords[1] << std::endl;
+
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
+
+            glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+
+            glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+            float val = (sinf(time * 4) * 0.5f * 0.9f) + 0.55f;
+            glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), val, val, val, 1.0f);
+
+            cursorVB.bind();
+            cursorIB.bind();
+
+            glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
+
+            cursorIB.unbind();
+            cursorVB.unbind();
+
+            shader.unbind();
+        }
 
         fontShader.unbind();
 
