@@ -1,3 +1,5 @@
+#pragma once
+
 #include "libs/glm/glm.hpp"
 
 // This function converts coordinates from in example the mouse that are pixel based into

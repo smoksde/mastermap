@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cmath>
 
-Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera) : GameObject(x, y, z, mesh, camera)
+Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color) : GameObject(x, y, z, mesh, camera, color)
 {
 }
 

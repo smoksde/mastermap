@@ -1,3 +1,5 @@
+#pragma once
+
 #include "game_object.h"
 
 #include "libs/glm/glm.hpp"

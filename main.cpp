@@ -31,9 +31,10 @@
 #include "game_object.h"
 #include "mesh.h"
 #include "font.h"
-#include "slab.h"
+#include "source.h"
 #include "button.h"
 #include "converters.h"
+#include "editor.h"
 
 int32 windowWidth = 1920;
 int32 windowHeight = 1080;
@@ -46,6 +47,7 @@ int modelViewProjMatrixLocation;
 
 std::list<std::unique_ptr<GameObject>> objects;
 std::list<std::unique_ptr<Button>> buttons;
+std::list<std::unique_ptr<Editor>> editors;
 
 GameObject *selectedObjectPtr;
 
@@ -54,6 +56,11 @@ float ingameY = 0.0f;
 
 float screenX = 0.0f;
 float screenY = 0.0f;
+
+float MouseDownX = 0.0f;
+float MouseDownY = 0.0f;
+
+float MouseDownTime = 0.0f;
 
 float32 camWidth = 1.0f * 16.0f * 2.0f;
 float32 camHeight = 1.0f * 9.0f * 2.0f;
@@ -114,21 +121,61 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 {
     shader.bind();
 
-    VertexBuffer highlightVB(standardVertices, standardNumVertices);
-    IndexBuffer highlightIB(standardIndices, standardNumIndices, sizeof(uint32));
+    Mesh standardMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
 
-    glm::mat4 modelViewProjMatrix = camera.getViewProj() * glm::translate(glm::mat4(1.0f), glm::vec3((int)std::round(ingameX), (int)std::round(ingameY), 1.0f));
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    glm::mat4 modelViewProjMatrix = camera.getViewProj() * modelMatrix;
 
-    glUniform4f(colorUniformLocation, 0.88f, 0.88f, 0.88f, 1.0f);
+    int colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
+    int modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
+
+    // Drawing vertical mouse highlight
+
+    modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3((int)std::round(ingameX), -camera.getY(), 1.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 18.0f * camera.getZoom(), 1.0f));
+    modelViewProjMatrix = camera.getViewProj() * modelMatrix;
+
+    glUniform4f(colorUniformLocation, 0.89f, 0.89f, 0.89f, 1.0f);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
-    highlightVB.bind();
-    highlightIB.bind();
+    standardMesh.bind();
 
-    glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
 
-    highlightIB.unbind();
-    highlightVB.unbind();
+    standardMesh.unbind();
+
+    // Drawing horizontal mouse highlight
+
+    modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.getX(), (int)std::round(ingameY), 1.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(32.0f * camera.getZoom(), 1.0f, 1.0f));
+    modelViewProjMatrix = camera.getViewProj() * modelMatrix;
+
+    glUniform4f(colorUniformLocation, 0.89f, 0.89f, 0.89f, 1.0f);
+    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+    standardMesh.bind();
+
+    glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
+
+    standardMesh.unbind();
+
+    // Drawing selection highlight
+
+    if (selectedObjectPtr != nullptr)
+    {
+        modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(selectedObjectPtr->getX(), selectedObjectPtr->getY(), 0.0f));
+
+        modelViewProjMatrix = camera.getViewProj() * modelMatrix;
+
+        glUniform4f(colorUniformLocation, 0.8f, 0.3f, 0.6f, 1.0f);
+        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+        standardMesh.bind();
+        glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
+        standardMesh.unbind();
+    }
+
+    // Calling the most render functions
 
     for (auto &objectPtr : objects)
     {
@@ -140,25 +187,106 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
         buttonPtr->render(shader);
     }
 
-    VertexBuffer editorVB(standardVertices, standardNumVertices);
-    IndexBuffer editorIB(standardIndices, standardNumIndices, sizeof(uint32));
+    if (selectedObjectPtr != nullptr)
+    {
+        if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
+        {
+            for (auto &editorPtr : editors)
+            {
+                editorPtr->render(shader, fontShader, selectedObjectPtr);
 
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, camHeight / 6 - camHeight / 2.0f, 0.0f));
-    modelMatrix = glm::scale(modelMatrix, glm::vec3(camWidth / 2.0f, camHeight / 3.0f, 1.0f));
+                // Render script here for now
 
-    modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+                Font font;
+                font.initFont("fonts/roboto_mono/RobotoMono-SemiBold.ttf");
 
-    glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
-    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+                std::string scriptString = "HI";
 
-    editorVB.bind();
-    editorIB.bind();
+                //int windowWidth = 1920;
+                //int windowHeight = 1080;
 
-    glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
+                Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
+                if (selectedAgentPtr != nullptr)
+                {
+                    scriptString = selectedAgentPtr->getScript();
 
-    editorVB.unbind();
-    editorIB.unbind();
+                    int lineIndex = 0;
+                    std::string substr;
+                    glm::vec2 sumWidth(0.0f, 0.0f);
+
+                    fontShader.bind();
+
+                    while (scriptString.length() > 0)
+                    {
+
+                        int strPos = 0;
+
+                        while (scriptString[strPos] != '\n')
+                        {
+                            strPos++;
+                        }
+
+                        substr = scriptString.substr(0, strPos);
+                        scriptString = scriptString.substr(strPos + 1);
+
+                        sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * lineIndex) + 40.0f, substr.c_str(), &fontShader);
+
+                        lineIndex++;
+                    }
+
+                    fontShader.unbind();
+
+                    shader.bind();
+
+                    // std::cout << substr.length() << std::endl;
+
+                    glm::mat4 modelMatrix = glm::mat4(1.0f);
+                    // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
+
+                    // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
+                    float coord_x = sumWidth[0];
+                    float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (lineIndex - 1)) + 40.0f;
+
+                    // float coord_x = windowWidth / ;
+                    // float coord_y = 100.0f;
+
+                    // std::cout << coord_x << std::endl;
+                    // std::cout << coord_y << std::endl;
+
+                    glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
+
+                    // std::cout << coords[0] << " " << coords[1] << std::endl;
+
+                    coords[0] += 0.2f;  // 0.15f
+                    coords[1] += 0.22f; // should have calculated value
+
+                    // std::cout << coords[0] << " " << coords[1] << std::endl;
+
+                    modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
+                    modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
+
+                    glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+
+                    glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+                    float val = 1.0f;
+                    glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), val, val, val, 1.0f);
+
+                    editorPtr->getMesh()->bind();
+
+                    glDrawElements(GL_TRIANGLES, editorPtr->getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
+
+                    editorPtr->getMesh()->unbind();
+
+                    shader.unbind();
+                }
+            }
+        }
+    }
+
+    // glDisable(GL_CULL_FACE);
+    // glEnable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // glDisable(GL_DEPTH_TEST);
 }
 
 int main(int argc, char **argv)
@@ -242,15 +370,27 @@ int main(int argc, char **argv)
         4, 6, 7};
     uint32 numIndices = 12;
 
+    RGBAColor agentColor(0.1f, 0.1f, 0.1f, 1.0f);
+    RGBAColor sourceColor(0.1f, 0.8f, 0.5f, 1.0f);
+
     Mesh mesh(vertices, numVertices, indices, numIndices);
-    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera);
+    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor);
+
+    Mesh standardMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
+
+    std::unique_ptr<GameObject> source = std::make_unique<Source>(0, 0, 0, standardMesh, camera, sourceColor);
 
     objects.push_back(std::move(agent));
+    objects.push_back(std::move(source));
 
     Mesh buttonMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
     std::unique_ptr<Button> button = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera);
 
     buttons.push_back(std::move(button));
+
+    std::unique_ptr<Editor> editor = std::make_unique<Editor>(buttonMesh, UICamera);
+
+    editors.push_back(std::move(editor));
 
     bool isDragging = false;
     float currentMouseX = 0.0f;
@@ -335,6 +475,11 @@ int main(int argc, char **argv)
                     currentMouseX = event.motion.x;
                     currentMouseY = event.motion.y;
 
+                    MouseDownX = event.motion.x;
+                    MouseDownY = event.motion.y;
+
+                    MouseDownTime = time;
+
                     // Calculate ingame coordinates
 
                     screenX = (event.motion.x * camWidth * camera.getZoom() / windowWidth) - (camWidth * camera.getZoom() / 2);
@@ -349,7 +494,17 @@ int main(int argc, char **argv)
                     // std::unique_ptr<GameObject> agent = std::make_unique<Agent>((int)std::round(ingameX), (int)std::round(ingameY), 0, mesh, camera);
 
                     // objects.push_back(std::move(agent));
+                }
+            }
+            else if (event.type == SDL_MOUSEBUTTONUP)
+            {
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    isDragging = false;
+                }
 
+                if (std::abs(event.motion.x - MouseDownX) < 10.0f && std::abs(event.motion.y - MouseDownY) < 10.0f)
+                {
                     for (auto &objectPtr : objects)
                     {
                         if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
@@ -371,13 +526,6 @@ int main(int argc, char **argv)
                             }
                         }
                     }
-                }
-            }
-            else if (event.type == SDL_MOUSEBUTTONUP)
-            {
-                if (event.button.button == SDL_BUTTON_LEFT)
-                {
-                    isDragging = false;
                 }
             }
             else if (event.type == SDL_MOUSEMOTION)
@@ -411,17 +559,23 @@ int main(int argc, char **argv)
             }
         }
 
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glClearColor(0.92f, 0.92f, 0.92f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
         camera.update();
 
+        // Update function for gameobjects, UI
+
         update(ingameX, ingameY);
+
+        // Render function for gameobjects, UI
 
         shader.bind();
         render(time, camera, shader, fontShader);
         shader.unbind();
+
+        // Render all text
 
         fontShader.bind();
 
@@ -451,84 +605,29 @@ int main(int argc, char **argv)
         yString.append(std::to_string((int)std::round(ingameY)));
         font.drawString(12.0f, 136.0f, yString.c_str(), &fontShader);
 
-        std::string scriptString = "HI";
+        std::string camInfo = "Camera:";
+        camInfo.append(" Width: ");
+        camInfo.append(std::to_string(camera.getWidth() * camera.getZoom()));
+        camInfo.append(" Height: ");
+        camInfo.append(std::to_string(camera.getHeight() * camera.getZoom()));
+        camInfo.append(" Zoom: ");
+        camInfo.append(std::to_string(camera.getZoom()));
+        font.drawString(12.0f, 184.0f, camInfo.c_str(), &fontShader);
 
-        Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
-        if (selectedAgentPtr != nullptr)
+        std::string selectionString = "Selection: ";
+
+        if (selectedObjectPtr != nullptr)
         {
-            scriptString = selectedAgentPtr->getScript();
-
-            int lineIndex = 0;
-            std::string substr;
-            glm::vec2 sumWidth(0.0f, 0.0f);
-
-            while (scriptString.length() > 0)
+            if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
             {
-                int strPos = 0;
-
-                while (scriptString[strPos] != '\n')
-                {
-                    strPos++;
-                }
-
-                substr = scriptString.substr(0, strPos);
-                scriptString = scriptString.substr(strPos + 1);
-
-                sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * lineIndex) + 40.0f, substr.c_str(), &fontShader);
-
-                lineIndex++;
+                selectionString.append("Agent");
             }
-
-            fontShader.unbind();
-
-            shader.bind();
-
-            VertexBuffer cursorVB(standardVertices, standardNumVertices);
-            IndexBuffer cursorIB(standardIndices, standardNumIndices, sizeof(uint32));
-
-            // std::cout << substr.length() << std::endl;
-
-            glm::mat4 modelMatrix = glm::mat4(1.0f);
-            // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
-
-            // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
-            float coord_x = sumWidth[0];
-            float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (lineIndex - 1)) + 40.0f;
-
-            // float coord_x = windowWidth / ;
-            // float coord_y = 100.0f;
-
-            std::cout << coord_x << std::endl;
-            std::cout << coord_y << std::endl;
-
-            glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camWidth, camHeight);
-
-            std::cout << coords[0] << " " << coords[1] << std::endl;
-
-            coords[0] += 0.2f;  // 0.15f
-            coords[1] += 0.22f; // should have calculated value
-
-            std::cout << coords[0] << " " << coords[1] << std::endl;
-
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
-
-            glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
-
-            glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-            float val = (sinf(time * 4) * 0.5f * 0.9f) + 0.55f;
-            glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), val, val, val, 1.0f);
-
-            cursorVB.bind();
-            cursorIB.bind();
-
-            glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
-
-            cursorIB.unbind();
-            cursorVB.unbind();
-
-            shader.unbind();
         }
+        else
+        {
+            selectionString.append("NONE");
+        }
+        font.drawString(12.0f, 232.0f, selectionString.c_str(), &fontShader);
 
         fontShader.unbind();
 

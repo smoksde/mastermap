@@ -1,8 +1,8 @@
 #include "game_object.h"
-#include <SDL2/SDL.h>
+// #include <SDL2/SDL.h>
 
-GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera)
-    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera)
+GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color)
+    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera), color(color)
 {
     scalingVector = DEFAULT_SCALING_VECTOR;
     rotation = ROTATION_UP;
@@ -13,7 +13,6 @@ GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera)
 
 void GameObject::update()
 {
-    
 }
 
 void GameObject::render(Shader &shader)
@@ -24,7 +23,7 @@ void GameObject::render(Shader &shader)
 
     glm::mat4 modelViewProjMatrix = camera.getViewProj() * getModelMatrix();
 
-    glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
+    glUniform4f(colorUniformLocation, color.R, color.G, color.B, color.A);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
     shader.bind();
@@ -159,4 +158,9 @@ void GameObject::setFacing(int newFacing)
         break;
     }
     updateModelMatrix();
+}
+
+glm::vec4 GameObject::getColor()
+{
+    return glm::vec4(color.R, color.G, color.B, color.A);
 }

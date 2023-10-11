@@ -1,3 +1,5 @@
+#pragma once
+
 #include "game_object.h"
 #include "defines.h"
 #include "string.h"
@@ -12,11 +14,11 @@ enum AgentState
 class Agent : public GameObject
 {
 private:
-    std::string script = "move\nmove\nmmmmmmmmmmmmmmmmmmmmmmmmmmml\n";
+    std::string script = "move\nmove\nleft\n";
     int pc = 0;
     AgentState state = INACTIVE;
 public:
-    Agent(int x, int y, int z, Mesh &mesh, Camera &camera);
+    Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color);
     void update() override;
     void render(Shader &shader) override;
     void moveForward();

@@ -42,11 +42,12 @@ private:
 
     Mesh &mesh;
     Camera &camera;
+    RGBAColor color;
 
     bool selected = false;
 
 public:
-    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera);
+    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color);
     virtual void update();
     virtual void render(Shader &shader);
     Mesh* getMesh();
@@ -68,4 +69,5 @@ public:
     void setRotation(float rotation);
     int getFacing();
     void setFacing(int facing);
+    glm::vec4 getColor();
 };

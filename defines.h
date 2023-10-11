@@ -20,6 +20,29 @@ struct Vertex {
     float32 z;
 };
 
+struct Inputs
+{
+    float currentMouseX;
+    float currentMouseY;
+    float mouseButtonDownX;
+    float mouseButtonDownY;
+    bool leftMouseClicked = false;
+};
+
+struct RGBAColor
+{
+    float R;
+    float G;
+    float B;
+    float A;
+
+    RGBAColor(float r, float g, float b, float a)
+    : R(r), G(g), B(b), A(a)
+    {
+
+    }
+};
+
 /*struct Vertex {
     float32 x;
     float32 y;

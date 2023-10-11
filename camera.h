@@ -89,4 +89,14 @@ public:
     {
         return projection;
     }
+
+    float getWidth()
+    {
+        return width;
+    }
+
+    float getHeight()
+    {
+        return height;
+    }
 };
