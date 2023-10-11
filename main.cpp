@@ -62,6 +62,9 @@ float MouseDownY = 0.0f;
 
 float MouseDownTime = 0.0f;
 
+int selectX = 0;
+int selectY = 0;
+
 float32 camWidth = 1.0f * 16.0f * 2.0f;
 float32 camHeight = 1.0f * 9.0f * 2.0f;
 
@@ -174,6 +177,20 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
         glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
         standardMesh.unbind();
     }
+    else
+    {
+        modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(selectX, selectY, 0.0f));
+
+        modelViewProjMatrix = camera.getViewProj() * modelMatrix;
+
+        glUniform4f(colorUniformLocation, 0.8f, 0.3f, 0.6f, 1.0f);
+        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+        standardMesh.bind();
+        glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
+        standardMesh.unbind();
+    }
+    
 
     // Calling the most render functions
 
@@ -505,6 +522,10 @@ int main(int argc, char **argv)
 
                 if (std::abs(event.motion.x - MouseDownX) < 10.0f && std::abs(event.motion.y - MouseDownY) < 10.0f)
                 {
+
+                    selectX = (int)std::round(ingameX);
+                    selectY = (int)std::round(ingameY);
+
                     for (auto &objectPtr : objects)
                     {
                         if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))

@@ -22,7 +22,7 @@ void Editor::render(Shader &shader, Shader &fontShader, GameObject *selectedObje
     int colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
     int modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
 
-    glUniform4f(colorUniformLocation, 0.1f, 0.1f, 0.1f, 1.0f);
+    glUniform4f(colorUniformLocation, 48.0f / 255.0f, 10.0f / 255.0f, 36.0f / 255.0f, 1.0f);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
     getMesh()->bind();
