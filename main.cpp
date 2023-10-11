@@ -2,6 +2,7 @@
 #include <memory>
 #include <cmath>
 #include <list>
+#include <vector>
 #define GLEW_STATIC
 #include <GL/glew.h>
 #define SDL_MAIN_HANDLED
@@ -64,6 +65,8 @@ float MouseDownTime = 0.0f;
 
 int selectX = 0;
 int selectY = 0;
+
+Font font;
 
 float32 camWidth = 1.0f * 16.0f * 2.0f;
 float32 camHeight = 1.0f * 9.0f * 2.0f;
@@ -190,7 +193,6 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
         glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
         standardMesh.unbind();
     }
-    
 
     // Calling the most render functions
 
@@ -214,20 +216,28 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 
                 // Render script here for now
 
-                Font font;
-                font.initFont("fonts/roboto_mono/RobotoMono-SemiBold.ttf");
-
                 std::string scriptString = "HI";
 
-                //int windowWidth = 1920;
-                //int windowHeight = 1080;
+                // int windowWidth = 1920;
+                // int windowHeight = 1080;
 
                 Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
                 if (selectedAgentPtr != nullptr)
                 {
-                    scriptString = selectedAgentPtr->getScript();
+                    //scriptString = selectedAgentPtr->getScript().getScriptString();
 
-                    int lineIndex = 0;
+                    fontShader.bind();
+
+                    std::vector<std::string> linesVector = selectedAgentPtr->getScript().getLinesVector();
+
+                    glm::vec2 sumWidth(0.0f, 0.0f);
+                    for (int i = 0; i < linesVector.size(); i++)
+                    {
+                        sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * i) + 40.0f, linesVector.at(i).c_str(), &fontShader);
+                    }
+
+                    fontShader.unbind();
+                    /*int lineIndex = 0;
                     std::string substr;
                     glm::vec2 sumWidth(0.0f, 0.0f);
 
@@ -251,52 +261,58 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
                         lineIndex++;
                     }
 
-                    fontShader.unbind();
+                    fontShader.unbind();*/
 
-                    shader.bind();
+                    if (sinf(time * 4) > 0.0f)
+                    {
+                        shader.bind();
 
-                    // std::cout << substr.length() << std::endl;
+                        // std::cout << substr.length() << std::endl;
 
-                    glm::mat4 modelMatrix = glm::mat4(1.0f);
-                    // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
+                        glm::mat4 modelMatrix = glm::mat4(1.0f);
+                        // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
 
-                    // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
-                    float coord_x = sumWidth[0];
-                    float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (lineIndex - 1)) + 40.0f;
+                        // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
+                        float coord_x = sumWidth[0];
+                        float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (selectedAgentPtr->getScript().getCursor())) + 40.0f;
 
-                    // float coord_x = windowWidth / ;
-                    // float coord_y = 100.0f;
+                        // float coord_x = windowWidth / ;
+                        // float coord_y = 100.0f;
 
-                    // std::cout << coord_x << std::endl;
-                    // std::cout << coord_y << std::endl;
+                        // std::cout << coord_x << std::endl;
+                        // std::cout << coord_y << std::endl;
 
-                    glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
+                        glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
 
-                    // std::cout << coords[0] << " " << coords[1] << std::endl;
+                        // std::cout << coords[0] << " " << coords[1] << std::endl;
 
-                    coords[0] += 0.2f;  // 0.15f
-                    coords[1] += 0.22f; // should have calculated value
+                        coords[0] += 0.2f;  // 0.15f
+                        coords[1] += 0.22f; // should have calculated value
 
-                    // std::cout << coords[0] << " " << coords[1] << std::endl;
+                        // std::cout << coords[0] << " " << coords[1] << std::endl;
 
-                    modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
-                    modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
+                        modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
+                        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
 
-                    glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+                        glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
 
-                    glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-                    float val = 1.0f;
-                    glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), val, val, val, 1.0f);
+                        glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
-                    editorPtr->getMesh()->bind();
+                        glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
 
-                    glDrawElements(GL_TRIANGLES, editorPtr->getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
+                        editorPtr->getMesh()->bind();
 
-                    editorPtr->getMesh()->unbind();
+                        glDrawElements(GL_TRIANGLES, editorPtr->getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
 
-                    shader.unbind();
+                        editorPtr->getMesh()->unbind();
+
+                        shader.unbind();
+                    }
                 }
             }
+        }
+        else if (Source *sourcePtr = dynamic_cast<Source *>(selectedObjectPtr))
+        {
         }
     }
 
@@ -351,7 +367,6 @@ int main(int argc, char **argv)
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     shader.bind();
 
-    Font font;
     font.initFont("fonts/roboto_mono/RobotoMono-SemiBold.ttf");
 
     uint64 perfCounterFrequency = SDL_GetPerformanceFrequency();
@@ -390,8 +405,10 @@ int main(int argc, char **argv)
     RGBAColor agentColor(0.1f, 0.1f, 0.1f, 1.0f);
     RGBAColor sourceColor(0.1f, 0.8f, 0.5f, 1.0f);
 
+    Script script("move\nmove\nleft\n");
+
     Mesh mesh(vertices, numVertices, indices, numIndices);
-    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor);
+    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor, script);
 
     Mesh standardMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
 
@@ -520,7 +537,7 @@ int main(int argc, char **argv)
                     isDragging = false;
                 }
 
-                if (std::abs(event.motion.x - MouseDownX) < 10.0f && std::abs(event.motion.y - MouseDownY) < 10.0f)
+                if (std::abs(event.motion.x - MouseDownX) < 10.0f && std::abs(event.motion.y - MouseDownY) < 10.0f && time - MouseDownTime < 1.0f)
                 {
 
                     selectX = (int)std::round(ingameX);
@@ -538,6 +555,24 @@ int main(int argc, char **argv)
                                 }
                                 agentPtr->select();
                                 selectedObjectPtr = agentPtr;
+                                break;
+                            }
+                            if (selectedObjectPtr != nullptr)
+                            {
+                                selectedObjectPtr->deselect();
+                                selectedObjectPtr = nullptr;
+                            }
+                        }
+                        else if (auto *sourcePtr = dynamic_cast<Source *>(objectPtr.get()))
+                        {
+                            if (sourcePtr->getX() == (int)std::round(ingameX) && sourcePtr->getY() == (int)std::round(ingameY))
+                            {
+                                if (selectedObjectPtr != nullptr)
+                                {
+                                    selectedObjectPtr->deselect();
+                                }
+                                sourcePtr->select();
+                                selectedObjectPtr = sourcePtr;
                                 break;
                             }
                             if (selectedObjectPtr != nullptr)
@@ -642,6 +677,12 @@ int main(int argc, char **argv)
             if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
             {
                 selectionString.append("Agent");
+            }
+            else if (Source *sourcePtr = dynamic_cast<Source *>(selectedObjectPtr))
+            {
+                selectionString.append("Source");
+                selectionString.append(" ");
+                selectionString.append(std::to_string(sourcePtr->getAmount()));
             }
         }
         else

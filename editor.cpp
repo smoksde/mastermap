@@ -3,10 +3,12 @@
 Editor::Editor(Mesh &mesh, Camera &camera)
     : mesh(mesh), camera(camera)
 {
+    
 }
 
 void Editor::update()
 {
+
 }
 
 void Editor::render(Shader &shader, Shader &fontShader, GameObject *selectedObjectPtr)

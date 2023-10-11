@@ -1,42 +1,74 @@
 #include "agent.h"
 
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <cmath>
 
-Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color) : GameObject(x, y, z, mesh, camera, color)
+#include <SDL2/SDL.h>
+
+Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, Script script) : GameObject(x, y, z, mesh, camera, color), script(script) 
 {
+    
 }
 
 void Agent::update()
 {
     if (isSelected())
     {
-        std::string str = getScript();
+        state = INACTIVE;
 
-        if (str.length() > 0)
+        
+        
+        
+        // SHOULDNT HANDLE KEYINPUTS HERE CAUSE UPDATE IS CALLED ONCE A SECOND
+        
+        
+        const uint8* state = SDL_GetKeyboardState(nullptr);
+
+        if (state[SDL_SCANCODE_BACKSPACE])
         {
-            char character = str[pc];
+            // std::vector<std::string> lines = getScript().getLinesVector();
+            std::cout << "BACKSPACE" << std::endl;
+        }
+    }
+    else
+    {
+        state = AUTOMATIC;
+    }
 
-            if (character == 'm')
+    if (state == AUTOMATIC)
+    {
+        std::vector<std::string> strings = script.getLinesVector();
+
+        std::string str = strings.at(script.getPC());
+
+        if (strings.at(script.getPC()).length() > 0)
+        {
+
+            if (str == "move")
             {
                 moveForward();
             }
-            if (character == 'l')
+            if (str == "left")
             {
                 turnLeft();
             }
-            if (character == 'r')
+            if (str == "right")
             {
                 turnRight();
             }
 
-            if (pc >= str.length() - 1)
+            if (script.getPC() >= strings.size() - 1)
             {
-                pc = 0;
+                script.setPC(0);
+                script.setCursor(0);
             }
             else
             {
-                pc++;
+                script.setPC(script.getPC() + 1);
+                script.setCursor(script.getPC());
             }
         }
     }
@@ -117,12 +149,7 @@ void Agent::turnRight()
     }
 }
 
-void Agent::setScript(std::string str)
-{
-    script = str;
-}
-
-std::string Agent::getScript()
+Script Agent::getScript()
 {
     return script;
 }

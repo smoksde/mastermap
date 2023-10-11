@@ -17,6 +17,7 @@
                 "button.cpp",
                 "editor.cpp",
                 "source.cpp",
+                "script.cpp",
                 "-o",
                 "mastermap",
                 "-D",

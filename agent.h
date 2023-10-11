@@ -3,6 +3,7 @@
 #include "game_object.h"
 #include "defines.h"
 #include "string.h"
+#include "script.h"
 
 enum AgentState
 {
@@ -14,16 +15,14 @@ enum AgentState
 class Agent : public GameObject
 {
 private:
-    std::string script = "move\nmove\nleft\n";
-    int pc = 0;
+    Script script;
     AgentState state = INACTIVE;
 public:
-    Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color);
+    Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, Script script);
     void update() override;
     void render(Shader &shader) override;
     void moveForward();
     void turnLeft();
     void turnRight();
-    std::string getScript();
-    void setScript(std::string str);
+    Script getScript();
 };
