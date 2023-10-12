@@ -37,6 +37,12 @@
 #include "converters.h"
 #include "editor.h"
 
+enum GameState
+{
+    DEFAULT,
+    EDITOR
+};
+
 int32 windowWidth = 1920;
 int32 windowHeight = 1080;
 
@@ -51,6 +57,7 @@ std::list<std::unique_ptr<Button>> buttons;
 std::list<std::unique_ptr<Editor>> editors;
 
 GameObject *selectedObjectPtr;
+GameState gameState = DEFAULT;
 
 float ingameX = 0.0f;
 float ingameY = 0.0f;
@@ -98,8 +105,9 @@ void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
     std::cout << "[OpenGL Error] " << message << std::endl;
 }
 
-void update(float ingameX, float ingameY)
+void update()
 {
+
     elapsUpdate += delta;
     if (elapsUpdate >= 1.0f)
     {
@@ -210,6 +218,8 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     {
         if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
         {
+            gameState = EDITOR;
+
             for (auto &editorPtr : editors)
             {
                 editorPtr->render(shader, fontShader, selectedObjectPtr);
@@ -224,16 +234,22 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
                 Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
                 if (selectedAgentPtr != nullptr)
                 {
-                    //scriptString = selectedAgentPtr->getScript().getScriptString();
+                    // scriptString = selectedAgentPtr->getScript().getScriptString();
 
                     fontShader.bind();
+
+                    glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
 
                     std::vector<std::string> linesVector = selectedAgentPtr->getScript().getLinesVector();
 
                     glm::vec2 sumWidth(0.0f, 0.0f);
                     for (int i = 0; i < linesVector.size(); i++)
                     {
-                        sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * i) + 40.0f, linesVector.at(i).c_str(), &fontShader);
+                        glm::vec2 sum = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * i) + 40.0f, linesVector.at(i).c_str(), &fontShader);
+                        if (selectedAgentPtr->getScript().getCursor() == i)
+                        {
+                            sumWidth = sum;
+                        }
                     }
 
                     fontShader.unbind();
@@ -263,7 +279,8 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 
                     fontShader.unbind();*/
 
-                    if (sinf(time * 4) > 0.0f)
+                    // Drawing cursor
+                    if (sinf(time * 16) > 0.0f)
                     {
                         shader.bind();
 
@@ -274,22 +291,16 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 
                         // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
                         float coord_x = sumWidth[0];
+                        if (sumWidth[0] <= 0.0f)
+                        {
+                            coord_x = (windowWidth / 4.0f) + 20.0f;
+                        }
                         float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (selectedAgentPtr->getScript().getCursor())) + 40.0f;
-
-                        // float coord_x = windowWidth / ;
-                        // float coord_y = 100.0f;
-
-                        // std::cout << coord_x << std::endl;
-                        // std::cout << coord_y << std::endl;
 
                         glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
 
-                        // std::cout << coords[0] << " " << coords[1] << std::endl;
-
-                        coords[0] += 0.2f;  // 0.15f
-                        coords[1] += 0.22f; // should have calculated value
-
-                        // std::cout << coords[0] << " " << coords[1] << std::endl;
+                        coords[0] += 0.2f;
+                        coords[1] += 0.22f;
 
                         modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
                         modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
@@ -311,15 +322,21 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
                 }
             }
         }
-        else if (Source *sourcePtr = dynamic_cast<Source *>(selectedObjectPtr))
+        else
         {
+            gameState = DEFAULT;
         }
+    }
+    else
+    {
+        gameState = DEFAULT;
     }
 
     // glDisable(GL_CULL_FACE);
     // glEnable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     // glDisable(GL_DEPTH_TEST);
+    shader.unbind();
 }
 
 int main(int argc, char **argv)
@@ -339,7 +356,7 @@ int main(int argc, char **argv)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
-    uint32 flags = SDL_WINDOW_OPENGL; // | SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP
+    uint32 flags = SDL_WINDOW_OPENGL; //| SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP;
 
     window = SDL_CreateWindow("MasterMap", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, flags);
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
@@ -363,6 +380,7 @@ int main(int argc, char **argv)
     // glEnable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    Shader artShader("shaders/art.vert", "shaders/art.frag");
     Shader fontShader("shaders/font.vert", "shaders/font.frag");
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     shader.bind();
@@ -374,7 +392,6 @@ int main(int argc, char **argv)
 
     camera.translate(glm::vec3(0.0f, 0.0f, 5.0f));
     camera.update();
-
     UICamera.update();
 
     colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
@@ -450,39 +467,52 @@ int main(int argc, char **argv)
             }
             else if (event.type == SDL_KEYDOWN)
             {
-                switch (event.key.keysym.sym)
+                if (gameState == DEFAULT)
                 {
-                case SDLK_w:
-                    for (auto &objectPtr : objects)
+                    switch (event.key.keysym.sym)
                     {
-                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                    case SDLK_w:
+                        for (auto &objectPtr : objects)
                         {
-                            // agentPtr->moveForward();
+                            if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                            {
+                                agentPtr->moveForward();
+                            }
                         }
-                    }
-                    break;
-                case SDLK_s:
-                    break;
-                case SDLK_a:
+                        break;
+                    case SDLK_s:
+                        break;
+                    case SDLK_a:
 
-                    for (auto &objectPtr : objects)
-                    {
-                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        for (auto &objectPtr : objects)
                         {
-                            agentPtr->turnLeft();
+                            if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                            {
+                                agentPtr->turnLeft();
+                            }
                         }
-                    }
-                    break;
-                case SDLK_d:
+                        break;
+                    case SDLK_d:
 
-                    for (auto &objectPtr : objects)
-                    {
-                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        for (auto &objectPtr : objects)
                         {
-                            agentPtr->turnRight();
+                            if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                            {
+                                agentPtr->turnRight();
+                            }
                         }
+                        break;
                     }
-                    break;
+                }
+                else if (gameState == EDITOR)
+                {
+                    SDL_Keycode keyPressed = event.key.keysym.sym;
+
+                    Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
+                    if (selectedAgentPtr != nullptr)
+                    {
+                        selectedAgentPtr->getScript().handleKeyInput(keyPressed);
+                    }
                 }
             }
             else if (event.type == SDL_KEYUP)
@@ -621,19 +651,34 @@ int main(int argc, char **argv)
 
         camera.update();
 
-        // Update function for gameobjects, UI
+        update();
 
-        update(ingameX, ingameY);
-
-        // Render function for gameobjects, UI
-
-        shader.bind();
         render(time, camera, shader, fontShader);
-        shader.unbind();
 
-        // Render all text
+        // Render background
+        /*
+        artShader.bind();
 
+        glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.getX(), -camera.getY(), 1.0f));
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(32.0f * camera.getZoom(), 18.0f * camera.getZoom(), 1.0f));
+        glm::mat4 modelViewProjMatrix = camera.getViewProj() * modelMatrix;
+
+        glUniform2f(glGetUniformLocation(artShader.getShaderId(), "iResolution"), (float)windowWidth, (float)windowHeight);
+        glUniform1f(glGetUniformLocation(artShader.getShaderId(), "iTime"), time);
+        glUniformMatrix4fv(glGetUniformLocation(artShader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+        standardMesh.bind();
+
+        glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
+
+        standardMesh.unbind();
+
+        artShader.unbind();
+*/
+        // Render debug information
         fontShader.bind();
+
+        glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 0.0f, 0.0f, 0.0f, 1.0f);
 
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
@@ -670,6 +715,17 @@ int main(int argc, char **argv)
         camInfo.append(std::to_string(camera.getZoom()));
         font.drawString(12.0f, 184.0f, camInfo.c_str(), &fontShader);
 
+        std::string gameStateInfo = "GameState: ";
+        if (gameState == DEFAULT)
+        {
+            gameStateInfo.append("DEFAULT");
+        }
+        else if (gameState == EDITOR)
+        {
+            gameStateInfo.append("EDITOR");
+        }
+        font.drawString(12.0f, 232.0f, gameStateInfo.c_str(), &fontShader);
+
         std::string selectionString = "Selection: ";
 
         if (selectedObjectPtr != nullptr)
@@ -689,7 +745,7 @@ int main(int argc, char **argv)
         {
             selectionString.append("NONE");
         }
-        font.drawString(12.0f, 232.0f, selectionString.c_str(), &fontShader);
+        font.drawString(12.0f, 280.0f, selectionString.c_str(), &fontShader);
 
         fontShader.unbind();
 

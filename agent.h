@@ -24,5 +24,5 @@ public:
     void moveForward();
     void turnLeft();
     void turnRight();
-    Script getScript();
+    Script& getScript();
 };

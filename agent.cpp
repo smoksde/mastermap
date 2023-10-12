@@ -6,8 +6,6 @@
 #include <vector>
 #include <cmath>
 
-#include <SDL2/SDL.h>
-
 Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, Script script) : GameObject(x, y, z, mesh, camera, color), script(script) 
 {
     
@@ -18,20 +16,6 @@ void Agent::update()
     if (isSelected())
     {
         state = INACTIVE;
-
-        
-        
-        
-        // SHOULDNT HANDLE KEYINPUTS HERE CAUSE UPDATE IS CALLED ONCE A SECOND
-        
-        
-        const uint8* state = SDL_GetKeyboardState(nullptr);
-
-        if (state[SDL_SCANCODE_BACKSPACE])
-        {
-            // std::vector<std::string> lines = getScript().getLinesVector();
-            std::cout << "BACKSPACE" << std::endl;
-        }
     }
     else
     {
@@ -74,6 +58,8 @@ void Agent::update()
     }
     GameObject::update();
 }
+
+
 
 void Agent::render(Shader &shader)
 {
@@ -149,7 +135,7 @@ void Agent::turnRight()
     }
 }
 
-Script Agent::getScript()
+Script& Agent::getScript()
 {
     return script;
 }

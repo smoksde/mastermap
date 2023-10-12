@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <SDL2/SDL.h>
 
 class Script
 {
@@ -13,10 +14,13 @@ private:
 public:
     Script(std::string scriptString);
     std::string getScriptString();
-    std::vector<std::string> getLinesVector();
+    std::vector<std::string>& getLinesVector();
     void updateLinesVector();
+    void updateScriptString();
     int getPC();
     int getCursor();
     void setPC(int newPC);
     void setCursor(int newCursor);
+
+    void handleKeyInput(SDL_Keycode keyPressed);
 };
