@@ -111,6 +111,8 @@ void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
 
 void update()
 {
+    camera.update(delta);
+
     elapsUpdate += delta;
     if (elapsUpdate >= 1.0f)
     {
@@ -376,8 +378,8 @@ int main(int argc, char **argv)
     uint64 lastCounter = SDL_GetPerformanceCounter();
 
     camera.translate(glm::vec3(0.0f, 0.0f, 5.0f));
-    camera.update();
-    UICamera.update();
+    camera.updateViewProj();
+    UICamera.updateViewProj();
 
     colorUniformLocation = glGetUniformLocation(shader.getShaderId(), "u_color");
     modelViewProjMatrixLocation = glGetUniformLocation(shader.getShaderId(), "u_modelViewProj");
@@ -628,7 +630,7 @@ int main(int argc, char **argv)
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
-        camera.update();
+        camera.updateViewProj();
 
         update();
 

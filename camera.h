@@ -5,6 +5,8 @@
 #include "libs/glm/gtc/matrix_transform.hpp"
 #include "libs/glm/gtx/string_cast.hpp"
 
+#include <cmath>
+
 class Camera
 {
 
@@ -15,6 +17,8 @@ private:
 
     glm::vec3 position;
     float zoom;
+    float targetZoom;
+    float zoomSpeed;
     float width;
     float height;
 
@@ -25,10 +29,20 @@ public:
         width = nwidth;
         height = nheight;
         zoom = 1.0f;
+        targetZoom = zoom;
+        zoomSpeed = 2.0f;
         projection = glm::ortho(-zoom * width / 2.0f, zoom * width / 2.0f, -zoom * height / 2.0f, zoom * height / 2.0f, -1.0f, 1000.0f);
         view = glm::mat4(1.0f);
         position = glm::vec3(0.0f, 0.0f, -8.0f);
-        update();
+        updateViewProj();
+    }
+
+    void update(float delta)
+    {
+        float zoomDelta = targetZoom - zoom;
+        if (std::abs(zoomDelta) < 0.001f) zoom = targetZoom;
+        zoom += zoomDelta * delta * zoomSpeed * glm::clamp(std::abs(zoomDelta), 2.0f, 10.0f);
+        updateProjection();
     }
 
     glm::mat4 getViewProj()
@@ -56,7 +70,7 @@ public:
         return position[2];
     }
 
-    void update()
+    void updateViewProj()
     {
         viewProj = projection * glm::translate(view, position);
     }
@@ -68,9 +82,10 @@ public:
 
     void changeZoom(float change)
     {
-        zoom += change;
+        /*zoom += change;
         if (zoom > 8.0f) zoom = 8.0f;
-        if (zoom < 1.0f) zoom = 1.0f;
+        if (zoom < 1.0f) zoom = 1.0f;*/
+        targetZoom = glm::clamp(targetZoom + change, 1.0f, 8.0f);
         updateProjection();
     }
 
@@ -82,7 +97,7 @@ public:
     void updateProjection()
     {
         projection = glm::ortho(-zoom * width / 2.0f, zoom * width / 2.0f, -zoom * height / 2.0f, zoom * height / 2.0f, -1.0f, 1000.0f);
-        update();
+        updateViewProj();
     }
 
     glm::mat4 getProjection()
