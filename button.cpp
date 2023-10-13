@@ -2,23 +2,12 @@
 
 #include <iostream>
 
-Button::Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera)
-    : x(x), y(y), width(width), height(height), mesh(mesh), camera(camera) 
+Button::Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera, int item)
+    : x(x), y(y), width(width), height(height), mesh(mesh), camera(camera), item(item) 
 {
     translationVector = glm::vec3(x, y, 0.0f);
     scalingVector = glm::vec3(width, height, 1.0f);
     updateModelMatrix();
-}
-
-void Button::update(float mouseX, float mouseY)
-{
-
-    if (std::abs(x - mouseX) <= 0.5f && std::abs(y - mouseY) <= 0.5f)
-    {
-    }
-    else
-    {
-    }
 }
 
 void Button::render(Shader &shader)
@@ -54,4 +43,29 @@ glm::mat4 Button::getModelMatrix()
 Mesh *Button::getMesh()
 {
     return &mesh;
+}
+
+float Button::getX()
+{
+    return x;
+}
+
+float Button::getY()
+{
+    return y;
+}
+
+float Button::getWidth()
+{
+    return width;
+}
+
+float Button::getHeight()
+{
+    return height;
+}
+
+float Button::getItem()
+{
+    return item;
 }

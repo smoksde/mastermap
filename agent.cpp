@@ -13,6 +13,7 @@ Agent::Agent(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, S
 
 void Agent::update()
 {
+
     if (isSelected())
     {
         state = INACTIVE;

@@ -21,11 +21,17 @@ private:
 
     Mesh &mesh;
     Camera &camera;
+
+    int item;
 public:
-    Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera);
-    void update(float mouseX, float mouseY);
+    Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera, int item);
     void render(Shader &shader);
     void updateModelMatrix();
     glm::mat4 getModelMatrix();
     Mesh* getMesh();
+    float getX();
+    float getY();
+    float getWidth();
+    float getHeight();
+    float getItem();
 };

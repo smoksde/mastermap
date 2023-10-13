@@ -3,6 +3,7 @@
 #include <cmath>
 #include <list>
 #include <vector>
+#include <utility>
 #define GLEW_STATIC
 #include <GL/glew.h>
 #define SDL_MAIN_HANDLED
@@ -58,6 +59,8 @@ std::list<std::unique_ptr<Button>> buttons;
 std::unique_ptr<Editor> editorPtr;
 
 GameObject *selectedObjectPtr;
+GameObject *hoverItemPtr;
+Item hoverItemId = ITEM_NULL;
 GameState gameState = DEFAULT;
 
 float ingameX = 0.0f;
@@ -108,7 +111,6 @@ void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
 
 void update()
 {
-
     elapsUpdate += delta;
     if (elapsUpdate >= 1.0f)
     {
@@ -126,9 +128,10 @@ void update()
         elapsUpdate = 0.0f;
     }
 
-    for (auto &buttonPtr : buttons)
+    if (hoverItemPtr != nullptr)
     {
-        buttonPtr->update(screenX, screenY);
+        hoverItemPtr->setX((int)std::round(ingameX));
+        hoverItemPtr->setY((int)std::round(ingameY));
     }
 }
 
@@ -213,6 +216,13 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     for (auto &buttonPtr : buttons)
     {
         buttonPtr->render(shader);
+    }
+
+    // Render selected item / hover item
+
+    if (hoverItemPtr != nullptr && hoverItemId != ITEM_NULL)
+    {
+        hoverItemPtr->render(shader);
     }
 
     if (selectedObjectPtr != nullptr)
@@ -353,7 +363,6 @@ int main(int argc, char **argv)
     // glEnable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    
     // Create all shaders that are used for the game
     Shader artShader("shaders/art.vert", "shaders/art.frag");
     Shader fontShader("shaders/font.vert", "shaders/font.frag");
@@ -411,9 +420,11 @@ int main(int argc, char **argv)
     objects.push_back(std::move(source));
 
     Mesh buttonMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
-    std::unique_ptr<Button> button = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera);
+    std::unique_ptr<Button> agentButton = std::make_unique<Button>(-2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera, ITEM_AGENT);
+    std::unique_ptr<Button> sourceButton = std::make_unique<Button>(2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera, ITEM_SOURCE);
 
-    buttons.push_back(std::move(button));
+    buttons.push_back(std::move(agentButton));
+    buttons.push_back(std::move(sourceButton));
 
     editorPtr = std::make_unique<Editor>(buttonMesh, UICamera);
 
@@ -491,7 +502,6 @@ int main(int argc, char **argv)
             }
             else if (event.type == SDL_KEYUP)
             {
-                
             }
             else if (event.type == SDL_MOUSEBUTTONDOWN)
             {
@@ -515,13 +525,6 @@ int main(int argc, char **argv)
 
                     ingameX = screenX - camera.getPosition()[0];
                     ingameY = screenY - camera.getPosition()[1];
-
-                    // std::cout << "ScreenX: " << screenX << " ScreenY: " << screenY << std::endl;
-                    // std::cout << "IngameX: " << ingameX << " IngameY: " << ingameY << std::endl;
-
-                    // std::unique_ptr<GameObject> agent = std::make_unique<Agent>((int)std::round(ingameX), (int)std::round(ingameY), 0, mesh, camera);
-
-                    // objects.push_back(std::move(agent));
                 }
             }
             else if (event.type == SDL_MOUSEBUTTONUP)
@@ -530,52 +533,68 @@ int main(int argc, char **argv)
                 {
                     isDragging = false;
                 }
+                    
+                if (event.button.button == SDL_BUTTON_RIGHT)
+                {
+                    hoverItemId = ITEM_NULL;
+                }
 
                 if (std::abs(event.motion.x - MouseDownX) < 10.0f && std::abs(event.motion.y - MouseDownY) < 10.0f && time - MouseDownTime < 1.0f)
                 {
+                    // Check if button was hit (later: check if ui was hit)
+
+                    bool UIhit = false;
+
+                    glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(event.motion.x, event.motion.y), (float)windowWidth, (float)windowHeight, camWidth, camHeight);
+
+                    for (auto &buttonPtr : buttons)
+                    {
+                        if (std::abs(buttonPtr->getX() - coords[0]) < (buttonPtr->getWidth() / 2.0f) && std::abs(buttonPtr->getY() - coords[1]) < (buttonPtr->getHeight() / 2.0f))
+                        {
+                            hoverItemId = Item(buttonPtr->getItem());
+                            if (hoverItemId == ITEM_NULL)
+                            {
+                                hoverItemPtr = nullptr;
+                            }
+                            else if (hoverItemId == ITEM_AGENT)
+                            {
+                                /*std::cout << hoverItemPtr << std::endl;
+                                std::unique_ptr<Agent> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor, emptyScript);
+                                std::cout << agent.get() << std::endl;
+                                hoverItemPtr = agent.release();
+                                std::cout << hoverItemPtr << std::endl;*/
+                                hoverItemPtr = new Agent(0, 0, 0, mesh, camera, agentColor, emptyScript);
+                            }
+                            else if (hoverItemId == ITEM_SOURCE)
+                            {
+                                hoverItemPtr = new Source(0, 0, 0, standardMesh, camera, sourceColor);
+                            }
+                        }
+                    }
+
+                    // If no button was hit, the ingame object selection can be updated
 
                     selectX = (int)std::round(ingameX);
                     selectY = (int)std::round(ingameY);
 
+                    if (selectedObjectPtr != nullptr)
+                        selectedObjectPtr->deselect();
+
+                    bool newSelection = false;
+
                     for (auto &objectPtr : objects)
                     {
-                        if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+                        if (objectPtr->getX() == selectX && objectPtr->getY() == selectY)
                         {
-                            if (agentPtr->getX() == (int)std::round(ingameX) && agentPtr->getY() == (int)std::round(ingameY))
-                            {
-                                if (selectedObjectPtr != nullptr)
-                                {
-                                    selectedObjectPtr->deselect();
-                                }
-                                agentPtr->select();
-                                selectedObjectPtr = agentPtr;
-                                break;
-                            }
-                            if (selectedObjectPtr != nullptr)
-                            {
-                                selectedObjectPtr->deselect();
-                                selectedObjectPtr = nullptr;
-                            }
-                        }
-                        else if (auto *sourcePtr = dynamic_cast<Source *>(objectPtr.get()))
-                        {
-                            if (sourcePtr->getX() == (int)std::round(ingameX) && sourcePtr->getY() == (int)std::round(ingameY))
-                            {
-                                if (selectedObjectPtr != nullptr)
-                                {
-                                    selectedObjectPtr->deselect();
-                                }
-                                sourcePtr->select();
-                                selectedObjectPtr = sourcePtr;
-                                break;
-                            }
-                            if (selectedObjectPtr != nullptr)
-                            {
-                                selectedObjectPtr->deselect();
-                                selectedObjectPtr = nullptr;
-                            }
+                            objectPtr->select();
+                            selectedObjectPtr = objectPtr.get();
+                            newSelection = true;
+                            break;
                         }
                     }
+
+                    if (!newSelection)
+                        selectedObjectPtr = nullptr;
                 }
             }
             else if (event.type == SDL_MOUSEMOTION)
@@ -597,16 +616,12 @@ int main(int argc, char **argv)
                     glm::vec3 movement = glm::vec3(offsetX * camWidth / windowWidth * camera.getZoom(), offsetY * camHeight / windowHeight * camera.getZoom(), 0.0f);
                     camera.translate(movement);
 
-                    // std::cout << camera.getZoom() << std::endl;
-
                     lastMouseX = currentMouseX;
                     lastMouseY = currentMouseY;
                 }
             }
             else if (event.type == SDL_MOUSEWHEEL)
-            {
                 camera.changeZoom(-event.wheel.y);
-            }
         }
 
         glClearColor(0.92f, 0.92f, 0.92f, 1.0f);
@@ -619,27 +634,7 @@ int main(int argc, char **argv)
 
         render(time, camera, shader, fontShader);
 
-        // Render background
-        /*
-        artShader.bind();
-
-        glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.getX(), -camera.getY(), 1.0f));
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(32.0f * camera.getZoom(), 18.0f * camera.getZoom(), 1.0f));
-        glm::mat4 modelViewProjMatrix = camera.getViewProj() * modelMatrix;
-
-        glUniform2f(glGetUniformLocation(artShader.getShaderId(), "iResolution"), (float)windowWidth, (float)windowHeight);
-        glUniform1f(glGetUniformLocation(artShader.getShaderId(), "iTime"), time);
-        glUniformMatrix4fv(glGetUniformLocation(artShader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-
-        standardMesh.bind();
-
-        glDrawElements(GL_TRIANGLES, standardNumIndices, GL_UNSIGNED_INT, 0);
-
-        standardMesh.unbind();
-
-        artShader.unbind();
-*/
-        // Render debug information
+        // Render debug information and other text
         fontShader.bind();
 
         glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 0.0f, 0.0f, 0.0f, 1.0f);
@@ -723,7 +718,6 @@ int main(int argc, char **argv)
 
         delta = ((float32)counterElapsed) / ((float32)perfCounterFrequency);
         FPS = (uint32)(((float32)perfCounterFrequency) / ((float32)counterElapsed));
-        // std::cout << FPS << std::endl;
         lastCounter = endCounter;
     }
 

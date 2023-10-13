@@ -14,6 +14,13 @@ typedef uint64_t uint64;
 typedef float float32;
 typedef double float64;
 
+enum Item
+{
+    ITEM_NULL,
+    ITEM_AGENT,
+    ITEM_SOURCE
+};
+
 struct Vertex {
     float32 x;
     float32 y;
