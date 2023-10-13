@@ -54,7 +54,8 @@ int modelViewProjMatrixLocation;
 
 std::list<std::unique_ptr<GameObject>> objects;
 std::list<std::unique_ptr<Button>> buttons;
-std::list<std::unique_ptr<Editor>> editors;
+
+std::unique_ptr<Editor> editorPtr;
 
 GameObject *selectedObjectPtr;
 GameState gameState = DEFAULT;
@@ -220,105 +221,77 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
         {
             gameState = EDITOR;
 
-            for (auto &editorPtr : editors)
+            editorPtr->render(shader, fontShader, selectedObjectPtr);
+
+            // Render script here for now
+
+            std::string scriptString = "HI";
+
+            // int windowWidth = 1920;
+            // int windowHeight = 1080;
+
+            Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
+            if (selectedAgentPtr != nullptr)
             {
-                editorPtr->render(shader, fontShader, selectedObjectPtr);
+                // scriptString = selectedAgentPtr->getScript().getScriptString();
 
-                // Render script here for now
+                fontShader.bind();
 
-                std::string scriptString = "HI";
+                glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
 
-                // int windowWidth = 1920;
-                // int windowHeight = 1080;
+                std::vector<std::string> linesVector = selectedAgentPtr->getScript().getLinesVector();
 
-                Agent *selectedAgentPtr = dynamic_cast<Agent *>(selectedObjectPtr);
-                if (selectedAgentPtr != nullptr)
+                glm::vec2 sumWidth(0.0f, 0.0f);
+                for (int i = 0; i < linesVector.size(); i++)
                 {
-                    // scriptString = selectedAgentPtr->getScript().getScriptString();
-
-                    fontShader.bind();
-
-                    glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
-
-                    std::vector<std::string> linesVector = selectedAgentPtr->getScript().getLinesVector();
-
-                    glm::vec2 sumWidth(0.0f, 0.0f);
-                    for (int i = 0; i < linesVector.size(); i++)
+                    glm::vec2 sum = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * i) + 40.0f, linesVector.at(i).c_str(), &fontShader);
+                    if (selectedAgentPtr->getScript().getCursor() == i)
                     {
-                        glm::vec2 sum = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * i) + 40.0f, linesVector.at(i).c_str(), &fontShader);
-                        if (selectedAgentPtr->getScript().getCursor() == i)
-                        {
-                            sumWidth = sum;
-                        }
+                        sumWidth = sum;
                     }
+                }
 
-                    fontShader.unbind();
-                    /*int lineIndex = 0;
-                    std::string substr;
-                    glm::vec2 sumWidth(0.0f, 0.0f);
+                fontShader.unbind();
 
-                    fontShader.bind();
+                // Drawing cursor
+                if (sinf(time * 16) > 0.0f)
+                {
+                    shader.bind();
 
-                    while (scriptString.length() > 0)
+                    // std::cout << substr.length() << std::endl;
+
+                    glm::mat4 modelMatrix = glm::mat4(1.0f);
+                    // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
+
+                    // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
+                    float coord_x = sumWidth[0];
+                    if (sumWidth[0] <= 0.0f)
                     {
-
-                        int strPos = 0;
-
-                        while (scriptString[strPos] != '\n')
-                        {
-                            strPos++;
-                        }
-
-                        substr = scriptString.substr(0, strPos);
-                        scriptString = scriptString.substr(strPos + 1);
-
-                        sumWidth = font.drawString(windowWidth / 4.0f + 20.0f, (2.0f * windowHeight / 3.0f) + (40.0f * lineIndex) + 40.0f, substr.c_str(), &fontShader);
-
-                        lineIndex++;
+                        coord_x = (windowWidth / 4.0f) + 20.0f;
                     }
+                    float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (selectedAgentPtr->getScript().getCursor())) + 40.0f;
 
-                    fontShader.unbind();*/
+                    glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
 
-                    // Drawing cursor
-                    if (sinf(time * 16) > 0.0f)
-                    {
-                        shader.bind();
+                    coords[0] += 0.2f;
+                    coords[1] += 0.22f;
 
-                        // std::cout << substr.length() << std::endl;
+                    modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
+                    modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
 
-                        glm::mat4 modelMatrix = glm::mat4(1.0f);
-                        // modelMatrix = glm::translate(modelMatrix, glm::vec3(- camWidth / 4.0f + (((40.0f + 22.0f + (44.0f * substr.length())) / windowWidth) * camWidth / 2.0f), -camHeight / 6.0f + (-((40.0f + (lineIndex * 60.0f)) / windowHeight) * camHeight / 2.0f), 0.0f));
+                    glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
 
-                        // float coord_x = (windowWidth / 4.0f) + (sumWidth) + 20.0f;
-                        float coord_x = sumWidth[0];
-                        if (sumWidth[0] <= 0.0f)
-                        {
-                            coord_x = (windowWidth / 4.0f) + 20.0f;
-                        }
-                        float coord_y = (2.0f * windowHeight / 3.0f) + (40.0f * (selectedAgentPtr->getScript().getCursor())) + 40.0f;
+                    glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
-                        glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(coord_x, coord_y), (float)windowWidth, (float)windowHeight, camera.getWidth(), camera.getHeight());
+                    glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
 
-                        coords[0] += 0.2f;
-                        coords[1] += 0.22f;
+                    editorPtr->getMesh()->bind();
 
-                        modelMatrix = glm::translate(modelMatrix, glm::vec3(coords, 0.0f));
-                        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f, 0.5f, 1.0f));
+                    glDrawElements(GL_TRIANGLES, editorPtr->getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
 
-                        glm::mat4 modelViewProjMatrix = UICamera.getViewProj() * modelMatrix;
+                    editorPtr->getMesh()->unbind();
 
-                        glUniformMatrix4fv(glGetUniformLocation(shader.getShaderId(), "u_modelViewProj"), 1, GL_FALSE, &modelViewProjMatrix[0][0]);
-
-                        glUniform4f(glGetUniformLocation(shader.getShaderId(), "u_color"), 1.0f, 1.0f, 1.0f, 1.0f);
-
-                        editorPtr->getMesh()->bind();
-
-                        glDrawElements(GL_TRIANGLES, editorPtr->getMesh()->getNumIndices(), GL_UNSIGNED_INT, 0);
-
-                        editorPtr->getMesh()->unbind();
-
-                        shader.unbind();
-                    }
+                    shader.unbind();
                 }
             }
         }
@@ -380,11 +353,14 @@ int main(int argc, char **argv)
     // glEnable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    
+    // Create all shaders that are used for the game
     Shader artShader("shaders/art.vert", "shaders/art.frag");
     Shader fontShader("shaders/font.vert", "shaders/font.frag");
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     shader.bind();
 
+    // Initialise the font that is used for text rendering
     font.initFont("fonts/roboto_mono/RobotoMono-SemiBold.ttf");
 
     uint64 perfCounterFrequency = SDL_GetPerformanceFrequency();
@@ -422,10 +398,10 @@ int main(int argc, char **argv)
     RGBAColor agentColor(0.1f, 0.1f, 0.1f, 1.0f);
     RGBAColor sourceColor(0.1f, 0.8f, 0.5f, 1.0f);
 
-    Script script("move\nmove\nleft\n");
+    Script emptyScript("\n");
 
     Mesh mesh(vertices, numVertices, indices, numIndices);
-    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor, script);
+    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor, emptyScript);
 
     Mesh standardMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
 
@@ -439,9 +415,7 @@ int main(int argc, char **argv)
 
     buttons.push_back(std::move(button));
 
-    std::unique_ptr<Editor> editor = std::make_unique<Editor>(buttonMesh, UICamera);
-
-    editors.push_back(std::move(editor));
+    editorPtr = std::make_unique<Editor>(buttonMesh, UICamera);
 
     bool isDragging = false;
     float currentMouseX = 0.0f;
@@ -517,17 +491,7 @@ int main(int argc, char **argv)
             }
             else if (event.type == SDL_KEYUP)
             {
-                switch (event.key.keysym.sym)
-                {
-                case SDLK_w:
-                    break;
-                case SDLK_s:
-                    break;
-                case SDLK_a:
-                    break;
-                case SDLK_d:
-                    break;
-                }
+                
             }
             else if (event.type == SDL_MOUSEBUTTONDOWN)
             {
