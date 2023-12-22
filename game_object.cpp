@@ -1,18 +1,51 @@
 #include "game_object.h"
 // #include <SDL2/SDL.h>
 
-GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color)
-    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera), color(color)
+GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects)
+    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera), color(color), objects(objects)
 {
     scalingVector = DEFAULT_SCALING_VECTOR;
     rotation = ROTATION_UP;
     facing = FACING_UP;
 
+    preX = x;
+    preY = y;
+
+    preRotation = ROTATION_UP;
+
     updateModelMatrix();
 }
 
-void GameObject::update()
+void GameObject::tick()
 {
+    preX = x;
+    preY = y;
+
+    preRotation = rotation;
+    updateModelMatrix();
+}
+
+void GameObject::update(float elapseUpdate)
+{
+    //1.0f - std::sqrt(elapseUpdate)
+    float expression = 1.0f / (1 + std::exp(-16.0f * (std::sqrt(elapseUpdate) - 0.5f)));
+    translationVector = glm::vec3(preX * (1 - expression) + x * expression, preY * (1.0f - expression) + y * expression, z);
+    if (std::abs(preRotation - rotation) > 180)
+    {
+        if (preRotation == 0.0f)
+        {
+            renderRotation = float(360.0f * (M_PI / 180.0f)) * (1.0f - expression) + float(rotation * (M_PI / 180.0f)) * expression;
+        }
+        else
+        {
+            renderRotation = float(preRotation * (M_PI / 180.0f)) * (1.0f - expression) + float(360.0f * (M_PI / 180.0f)) * expression;
+        }
+    }
+    else
+    {
+        renderRotation = float(preRotation * (M_PI / 180.0f)) * (1.0f - expression) + float(rotation * (M_PI / 180.0f)) * expression;
+    }
+    updateModelMatrix();
 }
 
 void GameObject::render(Shader &shader)
@@ -37,6 +70,33 @@ void GameObject::render(Shader &shader)
     getMesh()->unbind();
 }
 
+void GameObject::rotate()
+{
+    int fac = getFacing();
+                            
+    switch(fac)
+    {
+    case FACING_UP:
+        setFacing(FACING_LEFT);
+        break;
+    case FACING_LEFT:
+        setFacing(FACING_DOWN);
+        break;
+    case FACING_DOWN:
+        setFacing(FACING_RIGHT);
+        break;
+    case FACING_RIGHT:
+        setFacing(FACING_UP);
+        break;
+    }
+    
+    preRotation = rotation;
+    updateModelMatrix();
+
+    //preRotation = rotation;
+    //updateModelMatrix();
+}
+
 Mesh *GameObject::getMesh()
 {
     return &mesh;
@@ -47,7 +107,7 @@ void GameObject::updateModelMatrix()
     modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::translate(modelMatrix, translationVector);
     modelMatrix = glm::scale(modelMatrix, scalingVector);
-    modelMatrix = glm::rotate(modelMatrix, float(rotation * (M_PI / 180.0f)), DEFAULT_ROTATION_VECTOR);
+    modelMatrix = glm::rotate(modelMatrix, renderRotation, DEFAULT_ROTATION_VECTOR);
 }
 
 glm::mat4 GameObject::getModelMatrix()
@@ -109,6 +169,11 @@ void GameObject::updatePosition()
     updateModelMatrix();
 }
 
+glm::vec3 GameObject::getTranslationVector()
+{
+    return translationVector;
+}
+
 glm::vec3 GameObject::getScalingVector()
 {
     return scalingVector;
@@ -163,4 +228,12 @@ void GameObject::setFacing(int newFacing)
 glm::vec4 GameObject::getColor()
 {
     return glm::vec4(color.R, color.G, color.B, color.A);
+}
+
+void GameObject::setColor(glm::vec4 values)
+{
+    color.R = values[0];
+    color.G = values[1];
+    color.B = values[2];
+    color.A = values[3];
 }

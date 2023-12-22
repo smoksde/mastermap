@@ -18,7 +18,11 @@ enum Item
 {
     ITEM_NULL,
     ITEM_AGENT,
-    ITEM_SOURCE
+    ITEM_SOURCE,
+    ITEM_CORE,
+    ITEM_STORAGE,
+    ITEM_SINK,
+    ITEM_SPLITTER
 };
 
 struct Vertex {

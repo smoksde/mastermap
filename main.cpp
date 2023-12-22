@@ -27,13 +27,20 @@
 #include "defines.h"
 #include "vertex_buffer.h"
 #include "index_buffer.h"
+
 #include "shader.h"
 #include "camera.h"
-#include "agent.h"
+
 #include "game_object.h"
+#include "agent.h"
+#include "source.h"
+#include "core.h"
+#include "storage.h"
+#include "sink.h"
+#include "splitter.h"
+
 #include "mesh.h"
 #include "font.h"
-#include "source.h"
 #include "button.h"
 #include "converters.h"
 #include "editor.h"
@@ -44,11 +51,22 @@ enum GameState
     EDITOR
 };
 
-int32 windowWidth = 1920;
-int32 windowHeight = 1080;
+#define FILE_PATH "./res/audio/testClip.wav"
 
-// int32 windowWidth = 1280;
-// int32 windowHeight = 720;
+struct AudioData
+{
+	Uint8* pos;
+	Uint32 length;
+};
+
+int32 windowWidth = 2560;
+int32 windowHeight = 1440;
+
+//int32 windowWidth = 1920;
+//int32 windowHeight = 1080;
+
+//int32 windowWidth = 1280;
+//int32 windowHeight = 720;
 
 int colorUniformLocation;
 int modelViewProjMatrixLocation;
@@ -99,9 +117,23 @@ uint32 standardIndices[] = {
     0, 2, 3};
 uint32 standardNumIndices = 6;
 
+Vertex arrowVertices[] = {
+    Vertex{-0.5f, -0.5f, 0.0f},
+    Vertex{-0.5f, 0.5f, 0.0f},
+    Vertex{0.5f, 0.5f, 0.0f},
+};
+uint32 arrowNumVertices = 3;
+
+uint32 arrowIndices[] = {
+    0, 1, 2
+};
+uint32 arrowNumIndices = 3;
+
 float32 delta = 0.0f;
 float32 elapsUpdate = 0.0f;
 float32 elapsCursorBlink = 0.0f;
+
+int32 ticks = 0;
 
 // For windows add GLAPIENTRY behind void and window.h header
 void openGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
@@ -113,27 +145,58 @@ void update()
 {
     camera.update(delta);
 
+    // Call tick function of objects if one second elapsed
     elapsUpdate += delta;
     if (elapsUpdate >= 1.0f)
     {
         for (auto &objectPtr : objects)
         {
-            if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
+            /*if (auto *agentPtr = dynamic_cast<Agent *>(objectPtr.get()))
             {
                 agentPtr->update();
             }
             else
             {
                 objectPtr->update();
-            }
+            }*/
+            objectPtr->tick();
         }
         elapsUpdate = 0.0f;
+        ticks++;
+    }
+
+    for (auto &objectPtr : objects)
+    {
+        objectPtr->update(elapsUpdate);
     }
 
     if (hoverItemPtr != nullptr)
     {
         hoverItemPtr->setX((int)std::round(ingameX));
         hoverItemPtr->setY((int)std::round(ingameY));
+    }
+
+    // Handle collisions and delete corresponding objects
+    auto it1 = objects.begin();
+    while (it1 != objects.end())
+    {
+        auto it2 = std::next(it1);
+        while (it2 != objects.end())
+        {
+            if((*it1) -> getX() == (*it2) -> getX() && (*it1) -> getY() == (*it2) -> getY())
+            {
+                std::cout << "Collision detected" << std::endl;
+                if ((*it1).get() == selectedObjectPtr || (*it2).get() == selectedObjectPtr)
+                {
+                    selectedObjectPtr = nullptr;
+                }
+                it2 = objects.erase(it2);
+                it1 = objects.erase(it1);
+                break;
+            }
+            it2++;
+        }
+        it1++;
     }
 }
 
@@ -155,7 +218,7 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 18.0f * camera.getZoom(), 1.0f));
     modelViewProjMatrix = camera.getViewProj() * modelMatrix;
 
-    glUniform4f(colorUniformLocation, 0.89f, 0.89f, 0.89f, 1.0f);
+    glUniform4f(colorUniformLocation, 0.96f, 0.96f, 0.96f, 1.0f);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
     standardMesh.bind();
@@ -170,7 +233,7 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     modelMatrix = glm::scale(modelMatrix, glm::vec3(32.0f * camera.getZoom(), 1.0f, 1.0f));
     modelViewProjMatrix = camera.getViewProj() * modelMatrix;
 
-    glUniform4f(colorUniformLocation, 0.89f, 0.89f, 0.89f, 1.0f);
+    glUniform4f(colorUniformLocation, 0.96f, 0.96f, 0.96f, 1.0f);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
     standardMesh.bind();
@@ -214,6 +277,21 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     {
         objectPtr->render(shader);
     }
+
+    // Rendering UI parts
+
+    modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f/6.0f, 1.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(2.0f, 1.0f / 3.0f, 1.0f));
+    modelViewProjMatrix = modelMatrix;
+
+    glUniform4f(colorUniformLocation, 0.4f, 1.0f, 1.0f, 1.0f);
+    glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+    standardMesh.bind();
+
+    glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
+
+    standardMesh.unbind();
 
     for (auto &buttonPtr : buttons)
     {
@@ -407,26 +485,35 @@ int main(int argc, char **argv)
     uint32 numIndices = 12;
 
     RGBAColor agentColor(0.1f, 0.1f, 0.1f, 1.0f);
-    RGBAColor sourceColor(0.1f, 0.8f, 0.5f, 1.0f);
+    RGBAColor sourceColor(0.098f, 0.384f, 0.808f, 1.0f);
+    RGBAColor coreColor(0.1f, 0.1f, 0.2f, 1.0f);
+    RGBAColor storageColor(0.5f, 0.2f, 0.4f, 1.0f);
+    RGBAColor sinkColor(0.9f, 0.7f, 0.8f, 1.0f);
+    RGBAColor splitterColor(0.173f, 0.118f, 0.118f, 1.0f);
+    RGBAColor mergerColor(0.173f, 0.118f, 0.118f, 1.0f);
 
+    // red color 94.9, 3.1, 26.3
+    // red bar color 97.3, 30.2, 47.1
     Script emptyScript("\n");
 
     Mesh mesh(vertices, numVertices, indices, numIndices);
-    std::unique_ptr<GameObject> agent = std::make_unique<Agent>(4, 0, 0, mesh, camera, agentColor, emptyScript);
-
     Mesh standardMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
-
-    std::unique_ptr<GameObject> source = std::make_unique<Source>(0, 0, 0, standardMesh, camera, sourceColor);
-
-    objects.push_back(std::move(agent));
-    objects.push_back(std::move(source));
+    Mesh arrowMesh(arrowVertices, arrowNumVertices, arrowIndices, arrowNumIndices);
 
     Mesh buttonMesh(standardVertices, standardNumVertices, standardIndices, standardNumIndices);
-    std::unique_ptr<Button> agentButton = std::make_unique<Button>(-2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera, ITEM_AGENT);
-    std::unique_ptr<Button> sourceButton = std::make_unique<Button>(2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, UICamera, ITEM_SOURCE);
+    std::unique_ptr<Button> agentButton = std::make_unique<Button>(-4.0f, -7.0f, 1.0f, 1.0f, buttonMesh, mesh, UICamera, ITEM_AGENT);
+    std::unique_ptr<Button> sourceButton = std::make_unique<Button>(-2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_SOURCE);
+    std::unique_ptr<Button> coreButton = std::make_unique<Button>(0.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_CORE);
+    std::unique_ptr<Button> storageButton = std::make_unique<Button>(2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_STORAGE);
+    std::unique_ptr<Button> sinkButton = std::make_unique<Button>(4.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_SINK);
+    std::unique_ptr<Button> splitterButton = std::make_unique<Button>(6.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_SPLITTER);
 
     buttons.push_back(std::move(agentButton));
     buttons.push_back(std::move(sourceButton));
+    buttons.push_back(std::move(coreButton));
+    buttons.push_back(std::move(storageButton));
+    buttons.push_back(std::move(sinkButton));
+    buttons.push_back(std::move(splitterButton));
 
     editorPtr = std::make_unique<Editor>(buttonMesh, UICamera);
 
@@ -489,6 +576,12 @@ int main(int argc, char **argv)
                             }
                         }
                         break;
+                    case SDLK_r:
+                        if (selectedObjectPtr != nullptr)
+                        {
+                            selectedObjectPtr->rotate();
+                        }
+                        break;
                     }
                 }
                 else if (gameState == EDITOR)
@@ -535,7 +628,7 @@ int main(int argc, char **argv)
                 {
                     isDragging = false;
                 }
-                    
+
                 if (event.button.button == SDL_BUTTON_RIGHT)
                 {
                     hoverItemId = ITEM_NULL;
@@ -553,9 +646,11 @@ int main(int argc, char **argv)
                     {
                         if (std::abs(buttonPtr->getX() - coords[0]) < (buttonPtr->getWidth() / 2.0f) && std::abs(buttonPtr->getY() - coords[1]) < (buttonPtr->getHeight() / 2.0f))
                         {
+                            UIhit = true;
                             hoverItemId = Item(buttonPtr->getItem());
                             if (hoverItemId == ITEM_NULL)
                             {
+                                delete hoverItemPtr;
                                 hoverItemPtr = nullptr;
                             }
                             else if (hoverItemId == ITEM_AGENT)
@@ -565,38 +660,116 @@ int main(int argc, char **argv)
                                 std::cout << agent.get() << std::endl;
                                 hoverItemPtr = agent.release();
                                 std::cout << hoverItemPtr << std::endl;*/
-                                hoverItemPtr = new Agent(0, 0, 0, mesh, camera, agentColor, emptyScript);
+                                hoverItemPtr = new Agent(0, 0, 0, mesh, standardMesh, camera, agentColor, emptyScript, objects);
                             }
                             else if (hoverItemId == ITEM_SOURCE)
                             {
-                                hoverItemPtr = new Source(0, 0, 0, standardMesh, camera, sourceColor);
+                                hoverItemPtr = new Source(0, 0, 0, standardMesh, standardMesh, camera, sourceColor, objects);
+                            }
+                            else if (hoverItemId == ITEM_CORE)
+                            {
+                                hoverItemPtr = new Core(0, 0, 0, standardMesh, camera, coreColor, objects);
+                            }
+                            else if (hoverItemId == ITEM_STORAGE)
+                            {
+                                hoverItemPtr = new Storage(0, 0, 0, standardMesh, camera, storageColor, objects);
+                            }
+                            else if (hoverItemId == ITEM_SINK)
+                            {
+                                hoverItemPtr = new Sink(0, 0, 0, standardMesh, camera, sinkColor, objects);
+                            }
+                            else if (hoverItemId = ITEM_SPLITTER)
+                            {
+                                hoverItemPtr = new Splitter(0, 0, 0, standardMesh, arrowMesh, camera, splitterColor, objects);
                             }
                         }
                     }
 
                     // If no button was hit, the ingame object selection can be updated
 
-                    selectX = (int)std::round(ingameX);
-                    selectY = (int)std::round(ingameY);
-
-                    if (selectedObjectPtr != nullptr)
-                        selectedObjectPtr->deselect();
-
-                    bool newSelection = false;
-
-                    for (auto &objectPtr : objects)
+                    if (!UIhit)
                     {
-                        if (objectPtr->getX() == selectX && objectPtr->getY() == selectY)
+                        // If hoverItemId != ITEM_NULL and we actually have a hoverItemPtr:
+                        // Here the new object should be added to the game, list and the selection should be updated
+
+                        if (hoverItemId != ITEM_NULL && hoverItemPtr != nullptr)
                         {
-                            objectPtr->select();
-                            selectedObjectPtr = objectPtr.get();
-                            newSelection = true;
-                            break;
+                            // Checks if target square for new game object is empty. Only then the object is inserted.
+                            bool squareEmpty = true;
+                            for (auto &object : objects)
+                            {
+                                if (object -> getX() == hoverItemPtr -> getX() && object -> getY() == hoverItemPtr -> getY())
+                                {
+                                    squareEmpty = false;
+                                }
+                            }
+
+                            if(squareEmpty)
+                            {
+                                if (hoverItemId == ITEM_AGENT)
+                                {
+                                    std::unique_ptr<GameObject> newAgent = std::make_unique<Agent>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), mesh, standardMesh, camera, agentColor, emptyScript, objects);
+                                    objects.push_back(std::move(newAgent));
+                                }
+                                else if (hoverItemId == ITEM_SOURCE)
+                                {
+                                    std::unique_ptr<GameObject> newSource = std::make_unique<Source>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, standardMesh, camera, sourceColor, objects);
+                                    objects.push_back(std::move(newSource));
+                                }
+                                else if (hoverItemId == ITEM_CORE)
+                                {
+                                    std::unique_ptr<GameObject> newCore = std::make_unique<Core>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, camera, coreColor, objects);
+                                    objects.push_back(std::move(newCore));
+                                }
+                                else if (hoverItemId == ITEM_STORAGE)
+                                {
+                                    std::unique_ptr<GameObject> newStorage = std::make_unique<Storage>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, camera, storageColor, objects);
+                                    objects.push_back(std::move(newStorage));
+                                }
+                                else if (hoverItemId == ITEM_SINK)
+                                {
+                                    std::unique_ptr<GameObject> newSink = std::make_unique<Sink>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, camera, sinkColor, objects);
+                                    objects.push_back(std::move(newSink));
+                                }
+                                else if (hoverItemId == ITEM_SPLITTER)
+                                {
+                                    std::unique_ptr<GameObject> newSplitter = std::make_unique<Splitter>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, arrowMesh, camera, splitterColor, objects);
+                                    objects.push_back(std::move(newSplitter));
+                                }
+
+                                // TODO: Delete the object that is pointed to
+                                /*delete hoverItemPtr;
+                                hoverItemPtr = nullptr;
+                                hoverItemId = ITEM_NULL;*/
+                            }
+                        }
+
+                        // The selection variables get updated
+
+                        selectX = (int)std::round(ingameX);
+                        selectY = (int)std::round(ingameY);
+
+                        if (selectedObjectPtr != nullptr)
+                            selectedObjectPtr->deselect();
+
+                        bool newSelection = false;
+
+                        for (auto &objectPtr : objects)
+                        {
+                            if (objectPtr->getX() == selectX && objectPtr->getY() == selectY)
+                            {
+                                objectPtr->select();
+                                selectedObjectPtr = objectPtr.get();
+                                newSelection = true;
+                                break;
+                            }
+                        }
+
+                        if (!newSelection)
+                        {
+                            selectedObjectPtr = nullptr;
                         }
                     }
-
-                    if (!newSelection)
-                        selectedObjectPtr = nullptr;
                 }
             }
             else if (event.type == SDL_MOUSEMOTION)
@@ -623,10 +796,21 @@ int main(int argc, char **argv)
                 }
             }
             else if (event.type == SDL_MOUSEWHEEL)
-                camera.changeZoom(-event.wheel.y);
+            {
+                currentMouseX = event.motion.x;
+                currentMouseY = event.motion.y;
+
+                screenX = (event.motion.x * camWidth * camera.getZoom() / windowWidth) - (camWidth * camera.getZoom() / 2);
+                screenY = -1.0f * ((event.motion.y * camHeight * camera.getZoom() / windowHeight) - (camHeight * camera.getZoom() / 2));
+
+                ingameX = screenX - camera.getPosition()[0];
+                ingameY = screenY - camera.getPosition()[1];
+
+                camera.changeZoom(-event.wheel.y, ingameX, ingameY);
+            }
         }
 
-        glClearColor(0.92f, 0.92f, 0.92f, 1.0f);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         time += delta;
 
@@ -667,14 +851,18 @@ int main(int argc, char **argv)
         yString.append(std::to_string((int)std::round(ingameY)));
         font.drawString(12.0f, 136.0f, yString.c_str(), &fontShader);
 
+        std::string ticksString = "Ticks: ";
+        ticksString.append(std::to_string(ticks));
+        font.drawString(12.0f, 184.0f, ticksString.c_str(), &fontShader);
+
         std::string camInfo = "Camera:";
         camInfo.append(" Width: ");
-        camInfo.append(std::to_string(camera.getWidth() * camera.getZoom()));
+        camInfo.append(std::to_string(int(camera.getWidth() * camera.getZoom())));
         camInfo.append(" Height: ");
-        camInfo.append(std::to_string(camera.getHeight() * camera.getZoom()));
+        camInfo.append(std::to_string(int(camera.getHeight() * camera.getZoom())));
         camInfo.append(" Zoom: ");
-        camInfo.append(std::to_string(camera.getZoom()));
-        font.drawString(12.0f, 184.0f, camInfo.c_str(), &fontShader);
+        camInfo.append(std::to_string(int(camera.getZoom())));
+        //font.drawString(12.0f, 184.0f, camInfo.c_str(), &fontShader);
 
         std::string gameStateInfo = "GameState: ";
         if (gameState == DEFAULT)
@@ -694,12 +882,32 @@ int main(int argc, char **argv)
             if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
             {
                 selectionString.append("Agent");
+                selectionString.append(" ");
+                selectionString.append(std::to_string(agentPtr->getAmount()));
             }
             else if (Source *sourcePtr = dynamic_cast<Source *>(selectedObjectPtr))
             {
                 selectionString.append("Source");
                 selectionString.append(" ");
                 selectionString.append(std::to_string(sourcePtr->getAmount()));
+            }
+            else if (Core *corePtr = dynamic_cast<Core *>(selectedObjectPtr))
+            {
+                selectionString.append("Core");
+                selectionString.append(" ");
+                selectionString.append(std::to_string(corePtr->getAmount()));
+            }
+            else if (Storage *storagePtr = dynamic_cast<Storage*>(selectedObjectPtr))
+            {
+                selectionString.append("Storage");
+                selectionString.append(" ");
+                selectionString.append(std::to_string(storagePtr->getAmount()));
+            }
+            else if (Sink *sinkPtr = dynamic_cast<Sink*>(selectedObjectPtr))
+            {
+                selectionString.append("Sink");
+                selectionString.append(" ");
+                selectionString.append(std::to_string(sinkPtr->getAmount()));
             }
         }
         else

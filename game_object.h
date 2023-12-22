@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <memory>
+#include <list>
 
 #include "libs/glm/glm.hpp"
 #include "libs/glm/ext/matrix_transform.hpp"
@@ -32,8 +34,14 @@ private:
     int y;
     int z;
 
-    int facing;
-    float rotation;
+    int preX;
+    int preY;
+
+    int facing = FACING_UP;
+    float rotation = ROTATION_UP;
+
+    float preRotation = ROTATION_UP;
+    float renderRotation = ROTATION_UP;
 
     glm::vec3 translationVector;
     glm::vec3 scalingVector;
@@ -41,15 +49,21 @@ private:
     glm::mat4 modelMatrix;
 
     Mesh &mesh;
-    Camera &camera;
-    RGBAColor color;
-
     bool selected = false;
 
+protected:
+    RGBAColor color;
+    
 public:
-    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color);
-    virtual void update();
+
+    Camera &camera;
+    std::list<std::unique_ptr<GameObject>> &objects;
+
+    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects);
+    virtual void tick();
+    virtual void update(float elapsUpdate);
     virtual void render(Shader &shader);
+    void rotate();
     Mesh* getMesh();
     void updateModelMatrix();
     glm::mat4 getModelMatrix();
@@ -63,6 +77,7 @@ public:
     void setY(int newY);
     void setZ(int newZ);
     void updatePosition();
+    glm::vec3 getTranslationVector();
     glm::vec3 getScalingVector();
     void setScalingVector(glm::vec3 scaling);
     float getRotation();
@@ -70,4 +85,5 @@ public:
     int getFacing();
     void setFacing(int facing);
     glm::vec4 getColor();
+    void setColor(glm::vec4 values);
 };

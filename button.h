@@ -20,15 +20,17 @@ private:
     glm::mat4 modelMatrix;
 
     Mesh &mesh;
+    Mesh &iconMesh;
     Camera &camera;
 
     int item;
 public:
-    Button(float x, float y, float width, float height, Mesh &mesh, Camera &camera, int item);
+    Button(float x, float y, float width, float height, Mesh &mesh, Mesh &iconMesh, Camera &camera, int item);
     void render(Shader &shader);
     void updateModelMatrix();
     glm::mat4 getModelMatrix();
     Mesh* getMesh();
+    Mesh* getIconMesh();
     float getX();
     float getY();
     float getWidth();

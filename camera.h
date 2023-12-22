@@ -41,7 +41,9 @@ public:
     {
         float zoomDelta = targetZoom - zoom;
         if (std::abs(zoomDelta) < 0.001f) zoom = targetZoom;
-        zoom += zoomDelta * delta * zoomSpeed * glm::clamp(std::abs(zoomDelta), 2.0f, 10.0f);
+        float change = zoomDelta * delta * zoomSpeed * glm::clamp(std::abs(zoomDelta), 2.0f, 10.0f);
+        zoom += change;
+
         updateProjection();
     }
 
@@ -80,11 +82,12 @@ public:
         position += v * -1.0f;
     }
 
-    void changeZoom(float change)
+    void changeZoom(float change, float mouseX, float mouseY)
     {
         /*zoom += change;
         if (zoom > 8.0f) zoom = 8.0f;
         if (zoom < 1.0f) zoom = 1.0f;*/
+
         targetZoom = glm::clamp(targetZoom + change, 1.0f, 8.0f);
         updateProjection();
     }
