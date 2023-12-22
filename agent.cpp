@@ -95,7 +95,7 @@ void Agent::render(Shader &shader)
 
     glm::mat4 modelViewProjMatrix = camera.getViewProj() * getModelMatrix() * innerModelMatrix;
     
-    glUniform4f(colorUniformLocation, 0.333f, 0.561f, 0.894f, 1.0f);
+    glUniform4f(colorUniformLocation, 1.0f, 0.525f, 0.525f, 1.0f);
     glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
     shader.bind();

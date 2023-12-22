@@ -34,8 +34,7 @@ private:
     int y;
     int z;
 
-    int preX;
-    int preY;
+    
 
     int facing = FACING_UP;
     float rotation = ROTATION_UP;
@@ -55,6 +54,9 @@ protected:
     RGBAColor color;
     
 public:
+
+    int preX;
+    int preY;
 
     Camera &camera;
     std::list<std::unique_ptr<GameObject>> &objects;

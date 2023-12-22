@@ -22,7 +22,8 @@ enum Item
     ITEM_CORE,
     ITEM_STORAGE,
     ITEM_SINK,
-    ITEM_SPLITTER
+    ITEM_SPLITTER,
+    ITEM_MERGER
 };
 
 struct Vertex {

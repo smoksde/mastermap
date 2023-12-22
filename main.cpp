@@ -38,6 +38,7 @@
 #include "storage.h"
 #include "sink.h"
 #include "splitter.h"
+#include "merger.h"
 
 #include "mesh.h"
 #include "font.h"
@@ -174,6 +175,10 @@ void update()
     {
         hoverItemPtr->setX((int)std::round(ingameX));
         hoverItemPtr->setY((int)std::round(ingameY));
+        hoverItemPtr->preX = (int)std::round(ingameX);
+        hoverItemPtr->preY = (int)std::round(ingameY);
+
+        // TODO update render rotation
     }
 
     // Handle collisions and delete corresponding objects
@@ -307,7 +312,7 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 
     if (selectedObjectPtr != nullptr)
     {
-        if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
+        /*if (Agent *agentPtr = dynamic_cast<Agent *>(selectedObjectPtr))
         {
             gameState = EDITOR;
 
@@ -388,7 +393,7 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
         else
         {
             gameState = DEFAULT;
-        }
+        }*/
     }
     else
     {
@@ -485,10 +490,10 @@ int main(int argc, char **argv)
     uint32 numIndices = 12;
 
     RGBAColor agentColor(0.1f, 0.1f, 0.1f, 1.0f);
-    RGBAColor sourceColor(0.098f, 0.384f, 0.808f, 1.0f);
+    RGBAColor sourceColor(1.0f, 0.212f, 0.212f, 1.0f);
     RGBAColor coreColor(0.1f, 0.1f, 0.2f, 1.0f);
     RGBAColor storageColor(0.5f, 0.2f, 0.4f, 1.0f);
-    RGBAColor sinkColor(0.9f, 0.7f, 0.8f, 1.0f);
+    RGBAColor sinkColor(1.0f, 0.212f, 0.212f, 1.0f);
     RGBAColor splitterColor(0.173f, 0.118f, 0.118f, 1.0f);
     RGBAColor mergerColor(0.173f, 0.118f, 0.118f, 1.0f);
 
@@ -507,6 +512,7 @@ int main(int argc, char **argv)
     std::unique_ptr<Button> storageButton = std::make_unique<Button>(2.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_STORAGE);
     std::unique_ptr<Button> sinkButton = std::make_unique<Button>(4.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_SINK);
     std::unique_ptr<Button> splitterButton = std::make_unique<Button>(6.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_SPLITTER);
+    std::unique_ptr<Button> mergerButton = std::make_unique<Button>(8.0f, -7.0f, 1.0f, 1.0f, buttonMesh, standardMesh, UICamera, ITEM_MERGER);
 
     buttons.push_back(std::move(agentButton));
     buttons.push_back(std::move(sourceButton));
@@ -514,6 +520,7 @@ int main(int argc, char **argv)
     buttons.push_back(std::move(storageButton));
     buttons.push_back(std::move(sinkButton));
     buttons.push_back(std::move(splitterButton));
+    buttons.push_back(std::move(mergerButton));
 
     editorPtr = std::make_unique<Editor>(buttonMesh, UICamera);
 
@@ -580,6 +587,10 @@ int main(int argc, char **argv)
                         if (selectedObjectPtr != nullptr)
                         {
                             selectedObjectPtr->rotate();
+                        }
+                        if (hoverItemPtr != nullptr)
+                        {
+                            hoverItemPtr->rotate();
                         }
                         break;
                     }
@@ -676,11 +687,15 @@ int main(int argc, char **argv)
                             }
                             else if (hoverItemId == ITEM_SINK)
                             {
-                                hoverItemPtr = new Sink(0, 0, 0, standardMesh, camera, sinkColor, objects);
+                                hoverItemPtr = new Sink(0, 0, 0, standardMesh, standardMesh, camera, sinkColor, objects);
                             }
-                            else if (hoverItemId = ITEM_SPLITTER)
+                            else if (hoverItemId == ITEM_SPLITTER)
                             {
                                 hoverItemPtr = new Splitter(0, 0, 0, standardMesh, arrowMesh, camera, splitterColor, objects);
+                            }
+                            else if (hoverItemId == ITEM_MERGER)
+                            {
+                                hoverItemPtr = new Merger(0, 0, 0, standardMesh, arrowMesh, camera, mergerColor, objects);
                             }
                         }
                     }
@@ -728,13 +743,18 @@ int main(int argc, char **argv)
                                 }
                                 else if (hoverItemId == ITEM_SINK)
                                 {
-                                    std::unique_ptr<GameObject> newSink = std::make_unique<Sink>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, camera, sinkColor, objects);
+                                    std::unique_ptr<GameObject> newSink = std::make_unique<Sink>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, standardMesh, camera, sinkColor, objects);
                                     objects.push_back(std::move(newSink));
                                 }
                                 else if (hoverItemId == ITEM_SPLITTER)
                                 {
                                     std::unique_ptr<GameObject> newSplitter = std::make_unique<Splitter>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, arrowMesh, camera, splitterColor, objects);
                                     objects.push_back(std::move(newSplitter));
+                                }
+                                else if (hoverItemId == ITEM_MERGER)
+                                {
+                                    std::unique_ptr<GameObject> newMerger = std::make_unique<Merger>(hoverItemPtr->getX(), hoverItemPtr->getY(), hoverItemPtr->getZ(), standardMesh, arrowMesh, camera, mergerColor, objects);
+                                    objects.push_back(std::move(newMerger));
                                 }
 
                                 // TODO: Delete the object that is pointed to
@@ -908,6 +928,14 @@ int main(int argc, char **argv)
                 selectionString.append("Sink");
                 selectionString.append(" ");
                 selectionString.append(std::to_string(sinkPtr->getAmount()));
+            }
+            else if (Splitter *splitterPtr = dynamic_cast<Splitter*>(selectedObjectPtr))
+            {
+                selectionString.append("Splitter");
+            }
+            else if (Merger *mergerPtr = dynamic_cast<Merger*>(selectedObjectPtr))
+            {
+                selectionString.append("Merger");
             }
         }
         else

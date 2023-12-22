@@ -1,0 +1,12 @@
+red_color=#FF3636
+red_highlight_color=#FF8686
+green_color=#2AC553
+green_highlight_color=#76E192
+blue_color=#3B44B8
+blue_highlight_color=#8188DA
+yellow_color=#FFC536
+yellow_highlight_color=#FFDC86
+orange_color=#FF8536
+orange_highlight_color=#FFB686
+purple_color=#7231B4
+purple_highlight_color=#A879D8
