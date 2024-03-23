@@ -1,8 +1,8 @@
 #include "game_object.h"
 // #include <SDL2/SDL.h>
 
-GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects)
-    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera), color(color), objects(objects)
+GameObject::GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects, GameObject &parent)
+    : x(x), y(y), z(z), translationVector(glm::vec3(float(x), float(y), float(z))), mesh(mesh), camera(camera), color(color), objects(objects), parent(parent)
 {
     scalingVector = DEFAULT_SCALING_VECTOR;
     rotation = ROTATION_UP;

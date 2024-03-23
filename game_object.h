@@ -34,7 +34,7 @@ private:
     int y;
     int z;
 
-    
+    GameObject &parent;
 
     int facing = FACING_UP;
     float rotation = ROTATION_UP;
@@ -61,7 +61,7 @@ public:
     Camera &camera;
     std::list<std::unique_ptr<GameObject>> &objects;
 
-    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects);
+    GameObject(int x, int y, int z, Mesh &mesh, Camera &camera, RGBAColor color, std::list<std::unique_ptr<GameObject>> &objects, GameObject &parent);
     virtual void tick();
     virtual void update(float elapsUpdate);
     virtual void render(Shader &shader);
