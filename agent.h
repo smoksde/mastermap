@@ -12,7 +12,7 @@
 
 enum AgentState
 {
-    INACTIVE,
+    OFF,
     AUTOMATIC,
     MANUAL
 };
@@ -21,7 +21,7 @@ class Agent : public GameObject
 {
 private:
     Script script;
-    AgentState state = INACTIVE;
+    AgentState state = OFF;
 
     int amount = 0;
     int capacity = 64;

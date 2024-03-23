@@ -52,19 +52,11 @@ enum GameState
     EDITOR
 };
 
-#define FILE_PATH "./res/audio/testClip.wav"
+//int32 windowWidth = 2560;
+//int32 windowHeight = 1440;
 
-struct AudioData
-{
-	Uint8* pos;
-	Uint32 length;
-};
-
-int32 windowWidth = 2560;
-int32 windowHeight = 1440;
-
-//int32 windowWidth = 1920;
-//int32 windowHeight = 1080;
+int32 windowWidth = 1920;
+int32 windowHeight = 1080;
 
 //int32 windowWidth = 1280;
 //int32 windowHeight = 720;
@@ -98,8 +90,8 @@ int selectY = 0;
 
 Font font;
 
-float32 camWidth = 1.0f * 16.0f * 2.0f;
-float32 camHeight = 1.0f * 9.0f * 2.0f;
+float32 camWidth = 16.0f * 2.0f;
+float32 camHeight = 9.0f * 2.0f;
 
 Camera camera(camWidth, camHeight);
 
@@ -162,6 +154,7 @@ void update()
             }*/
             objectPtr->tick();
         }
+
         elapsUpdate = 0.0f;
         ticks++;
     }
@@ -255,7 +248,7 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
 
         modelViewProjMatrix = camera.getViewProj() * modelMatrix;
 
-        glUniform4f(colorUniformLocation, 0.8f, 0.3f, 0.6f, 1.0f);
+        glUniform4f(colorUniformLocation, 0.3f, 0.4f, 0.7f, 1.0f);
         glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
 
         standardMesh.bind();
@@ -281,6 +274,70 @@ void render(float time, Camera &camera, Shader &shader, Shader &fontShader)
     for (auto &objectPtr : objects)
     {
         objectPtr->render(shader);
+    }
+
+    // Render info board of selected object
+
+    if (selectedObjectPtr != nullptr)
+    {
+
+        float offsetX = 1.0f;
+        float offsetY = 1.0f;
+
+        float x = selectedObjectPtr->getX();
+        float y = selectedObjectPtr->getY();
+
+        x = x + camera.getPosition()[0];
+        y = y + camera.getPosition()[1];
+
+        y = -y;
+
+        x = x + (camWidth * camera.getZoom() / 2);
+        y = y + (camHeight * camera.getZoom() / 2);
+
+        x = x * windowWidth;
+        y = y * windowHeight;
+
+        x = x / (camWidth * camera.getZoom());
+        y = y / (camHeight * camera.getZoom()); 
+
+        // glm::vec2 drawCoords = INGAME_to_SDL_wrt_CAM(glm::vec2(selectedObjectPtr->getX(), selectedObjectPtr->getY()), windowWidth, windowHeight, camera.getWidth(), camera.getHeight(), glm::vec2(camera.getX(), camera.getY()), camera.getZoom());
+        
+        /*int camx = camera.getX();
+        int camy = camera.getY();
+
+
+        glm::vec2 drawCoords = glm::vec2(10.0f, 10.0f);
+        */
+
+        // drawing the container
+
+        /*shader.bind();
+
+        modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(selectedObjectPtr->getX() + offsetX, selectedObjectPtr->getY() + offsetY, 0.0f));
+
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(camera.getX(), camera.getY(), 0.0f));
+
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(camera.getZoom(), camera.getZoom(), 1.0f));
+
+        modelViewProjMatrix = camera.getProjection() * modelMatrix;
+
+        glUniform4f(colorUniformLocation, 0.8f, 0.3f, 0.6f, 1.0f);
+        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, &modelViewProjMatrix[0][0]);
+
+        standardMesh.bind();
+        glDrawElements(GL_TRIANGLES, standardMesh.getNumIndices(), GL_UNSIGNED_INT, 0);
+        standardMesh.unbind();
+
+        shader.unbind();*/
+        fontShader.bind();
+
+        
+        std::string info = "HELLO";
+        font.drawString(x, y, info.c_str(), &fontShader);
+        
+        fontShader.unbind();
+        shader.bind();
     }
 
     // Rendering UI parts
@@ -424,7 +481,7 @@ int main(int argc, char **argv)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
-    uint32 flags = SDL_WINDOW_OPENGL; //| SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP;
+    uint32 flags = SDL_WINDOW_OPENGL; //| SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_RESIZABLE;
 
     window = SDL_CreateWindow("MasterMap", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, flags);
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
@@ -546,6 +603,15 @@ int main(int argc, char **argv)
             {
                 close = true;
             }
+            else if (event.type == SDL_WINDOWEVENT)
+            {
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    // Handle window resize event
+                    windowWidth = event.window.data1;
+                    windowHeight = event.window.data2;
+                }
+                break;
+            }
             else if (event.type == SDL_KEYDOWN)
             {
                 if (gameState == DEFAULT)
@@ -651,7 +717,7 @@ int main(int argc, char **argv)
 
                     bool UIhit = false;
 
-                    glm::vec2 coords = SDL_to_OPENGL_UI(glm::vec2(event.motion.x, event.motion.y), (float)windowWidth, (float)windowHeight, camWidth, camHeight);
+                    glm::vec2 coords = SDL_to_OPENGL(glm::vec2(event.motion.x, event.motion.y), (float)windowWidth, (float)windowHeight, camWidth, camHeight);
 
                     for (auto &buttonPtr : buttons)
                     {
@@ -763,11 +829,13 @@ int main(int argc, char **argv)
                                 hoverItemId = ITEM_NULL;*/
                             }
                         }
+                        else
+                        {
+                            // The selection variables get updated
 
-                        // The selection variables get updated
-
-                        selectX = (int)std::round(ingameX);
-                        selectY = (int)std::round(ingameY);
+                            selectX = (int)std::round(ingameX);
+                            selectY = (int)std::round(ingameY);
+                        }
 
                         if (selectedObjectPtr != nullptr)
                             selectedObjectPtr->deselect();
@@ -843,7 +911,7 @@ int main(int argc, char **argv)
         // Render debug information and other text
         fontShader.bind();
 
-        glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 0.0f, 0.0f, 0.0f, 1.0f);
+        glUniform4f(glGetUniformLocation(fontShader.getShaderId(), "u_color"), 0.5f, 0.5f, 0.5f, 1.0f);
 
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
@@ -854,6 +922,8 @@ int main(int argc, char **argv)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_DEPTH_TEST);
 
+        std::list<std::string> info_strings;
+
         elaps += delta;
         if (elaps >= 1.0f)
         {
@@ -861,20 +931,19 @@ int main(int argc, char **argv)
             fpsString.append(std::to_string(FPS));
             elaps = 0.0f;
         }
-        font.drawString(12.0f, 40.0f, fpsString.c_str(), &fontShader);
+        info_strings.push_back(fpsString);
 
         std::string xString = "X: ";
         xString.append(std::to_string((int)std::round(ingameX)));
-        font.drawString(12.0f, 88.0f, xString.c_str(), &fontShader);
+        info_strings.push_back(xString);
 
         std::string yString = "Y: ";
         yString.append(std::to_string((int)std::round(ingameY)));
-        font.drawString(12.0f, 136.0f, yString.c_str(), &fontShader);
+        info_strings.push_back(yString);
 
-        std::string ticksString = "Ticks: ";
+        /*std::string ticksString = "Ticks: ";
         ticksString.append(std::to_string(ticks));
-        font.drawString(12.0f, 184.0f, ticksString.c_str(), &fontShader);
-
+*/
         std::string camInfo = "Camera:";
         camInfo.append(" Width: ");
         camInfo.append(std::to_string(int(camera.getWidth() * camera.getZoom())));
@@ -882,7 +951,7 @@ int main(int argc, char **argv)
         camInfo.append(std::to_string(int(camera.getHeight() * camera.getZoom())));
         camInfo.append(" Zoom: ");
         camInfo.append(std::to_string(int(camera.getZoom())));
-        //font.drawString(12.0f, 184.0f, camInfo.c_str(), &fontShader);
+        info_strings.push_back(camInfo);
 
         std::string gameStateInfo = "GameState: ";
         if (gameState == DEFAULT)
@@ -893,7 +962,7 @@ int main(int argc, char **argv)
         {
             gameStateInfo.append("EDITOR");
         }
-        font.drawString(12.0f, 232.0f, gameStateInfo.c_str(), &fontShader);
+        info_strings.push_back(gameStateInfo);
 
         std::string selectionString = "Selection: ";
 
@@ -942,7 +1011,15 @@ int main(int argc, char **argv)
         {
             selectionString.append("NONE");
         }
-        font.drawString(12.0f, 280.0f, selectionString.c_str(), &fontShader);
+        info_strings.push_back(selectionString);
+
+
+        int count = 0;
+        for (auto const& i : info_strings) 
+        {
+           font.drawString(12.0f, 40.0f + count * 48.0f, i.c_str(), &fontShader);
+           count++;
+        }
 
         fontShader.unbind();
 

@@ -19,7 +19,7 @@ void Agent::tick()
 
     if (isSelected())
     {
-        state = INACTIVE;
+        state = OFF;
     }
     else
     {
